@@ -1,4 +1,3 @@
-import os
 import pytest
 from app.database import (
     Base,
@@ -19,10 +18,9 @@ from app.database import (
 
 @pytest.fixture(autouse=True)
 def setup_teardown_db():
-    # Setup tables before test
+    """Provide a clean schema for each test against the isolated test DB."""
     Base.metadata.create_all(bind=engine)
     yield
-    # Teardown / clear tables after test
     Base.metadata.drop_all(bind=engine)
 
 
