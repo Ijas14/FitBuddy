@@ -30,7 +30,33 @@
   - Verify: Visual inspection and template rendering test via TestClient.
   - Files: `templates/index.html`, `templates/result.html`, `templates/all_users.html`, `static/css/style.css`.
 
-- [ ] Task 7: End-to-End Verification & Browser Testing
+- [x] Task 7: End-to-End Verification & Browser Testing
   - Acceptance: Full user journey tested in a live browser (home form submission -> result view -> feedback revision -> all users dashboard).
   - Verify: Playwright browser test navigates, fills form, clicks buttons, and verifies DOM elements.
   - Files: `tests/test_e2e_browser.py`.
+
+---
+
+## Verification Log
+
+**Test suite:** `25 passed` (`PYTHONPATH=. python -m pytest tests/ -q`)
+
+**Live server:** `python -m uvicorn app.main:app --port 8010` → started cleanly, 0 console errors in browser.
+
+**Browser E2E journey (Playwright, validated against DOCX screenshots):**
+
+| Step | Result |
+|---|---|
+| `GET /` renders input form (Name, User ID, Age, Weight, Goal, Intensity) | ✅ matches DOCX Image 24 |
+| Submit form → `POST /generate-workout` | ✅ 200, `result.html` rendered |
+| User Information card shows name/id/age/weight/goal/intensity | ✅ matches DOCX Image 25 |
+| Workout Plan renders Day 1–7 with Warm-up / Main Workout / Cooldown | ✅ matches DOCX Images 16 & 23 |
+| Nutrition Tip card renders goal-aligned advice | ✅ matches DOCX Image 14 |
+| Feedback form → `POST /submit-feedback` | ✅ 200, updated plan persisted |
+| Confirmation banner text | ✅ `Your plan has been updated based on your feedback!` (DOCX Image 22) |
+| `GET /view-all-users` admin table | ✅ 9 columns incl. `<pre>` Original + Updated plans (DOCX Images 7 & 19) |
+| `POST /delete-user/{id}` | ✅ 303 → dashboard, cascade delete verified |
+| `GET /docs` | ✅ 200 |
+
+**REST API contract checks (curl):** `/generate-workout/gemini`, `/nutrition-tip`, `/generate-plan`, `/update-plan/{id}` (incl. 404-style error body), `/api/users` — all return documented shapes.
+
