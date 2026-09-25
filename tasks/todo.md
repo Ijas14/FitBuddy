@@ -93,3 +93,6 @@
 
 4. **Admin table title mismatch** — test caught that the rendered title used an en dash (`–`) instead of the hyphen (`-`) shown in the DOCX screenshot. Realigned to `FitBuddy - All Users & Workout Plans`.
 
+5. **Mobile result-page horizontal overflow** (Playwright MCP, 375px: `scrollWidth 440` vs viewport 375, caused by the `.btn-secondary` "View All Users" link) and **fixed container widths** that did not scale with screen size.
+   → Fixed in `static/css/style.css`: fluid `clamp()` spacing/padding, container widths `min(1200px, 100%)` / `min(1600px, 100%)` with a 1400px+ tier, wrapping header nav, wrapping `.action-group` buttons that stack full-width under 640px, and a fluid `.page-header` on the admin dashboard. Verified 0 page-level overflow at 320/375/480/640/768/900/1024/1280/1440/1600/1920px on `/` and `/view-all-users`, and the full generate-plan journey at 320/375/768/1440px.
+
