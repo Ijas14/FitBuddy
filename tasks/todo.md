@@ -39,9 +39,18 @@
 
 ## Verification Log
 
-**Test suite:** `25 passed` (`PYTHONPATH=. python -m pytest tests/ -q`)
+**Final test suite:** `26 passed` — `PYTHONPATH=. python -m pytest tests/ -v`
 
-**Live server:** `python -m uvicorn app.main:app --port 8010` → started cleanly, 0 console errors in browser.
+| Test module | Tests | Covers |
+|---|---|---|
+| `test_database.py` | 6 | ORM models, CRUD helpers, cascade delete |
+| `test_schemas.py` | 5 | Pydantic validation (valid + invalid payloads) |
+| `test_ai_generators.py` | 4 | Gemini prompts + deterministic offline fallback |
+| `test_api_routes.py` | 5 | All JSON REST API contracts |
+| `test_web_routes.py` | 5 | All HTML form routes + template rendering |
+| `test_e2e_browser.py` | 1 | Full browser journey (Playwright) |
+
+**Live server:** `python -m uvicorn app.main:app --port 8010` → started cleanly, **0 console errors**.
 
 **Browser E2E journey (Playwright, validated against DOCX screenshots):**
 
@@ -58,5 +67,29 @@
 | `POST /delete-user/{id}` | ✅ 303 → dashboard, cascade delete verified |
 | `GET /docs` | ✅ 200 |
 
-**REST API contract checks (curl):** `/generate-workout/gemini`, `/nutrition-tip`, `/generate-plan`, `/update-plan/{id}` (incl. 404-style error body), `/api/users` — all return documented shapes.
+**REST API contract checks (curl):** `/generate-workout/gemini`, `/nutrition-tip`, `/generate-plan`, `/update-plan/{id}` (incl. error body), `/api/users` — all return documented shapes.
+
+**Responsive & accessibility checks (Playwright):**
+
+| Check | Result |
+|---|---|
+| No horizontal overflow at 375px (mobile) | ✅ `scrollWidth == 375` |
+| Every form control has an associated `<label>` | ✅ 100% |
+| Exactly one page-level `<h1>` per page | ✅ fixed during review |
+| `lang="en"` + descriptive `<title>` | ✅ |
+| Images have `alt` attributes | ✅ |
+| Console errors/warnings | ✅ 0 |
+
+### Defects found and fixed during verification
+
+1. **Test suite corrupted the live dev database** — pytest teardown ran `drop_all` against the shared `fitbuddy.db`, breaking a concurrently running Uvicorn server (`no such table: users`, surfaced as `Internal Server Error` in the browser).
+   → Fixed by `tests/conftest.py`, which forces an isolated `DATABASE_URL` (temp file) *before* any `app.*` module is imported, plus a session-scoped cleanup fixture. Verified: dev DB survives a full test run with its schema intact.
+
+2. **Accessibility gap — no `<h1>`** on any page.
+   → Added a single page-level `<h1>` per template (`Generate Your Personalized 7-Day Fitness Plan`, `Your Personalized Workout Plan`, `All Users & Workout Plans`) with matching CSS, keeping `<h2>` for card headings.
+
+3. **E2E navigation assertions were flaky** (`wait_for_load_state` raced the commit, and `to_have_url` treated the string as a literal).
+   → Replaced with `page.expect_navigation()` context managers and `expect(page).to_have_url(re.compile(...))`. Verified stable across repeated full-suite runs.
+
+4. **Admin table title mismatch** — test caught that the rendered title used an en dash (`–`) instead of the hyphen (`-`) shown in the DOCX screenshot. Realigned to `FitBuddy - All Users & Workout Plans`.
 
