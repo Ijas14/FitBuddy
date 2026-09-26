@@ -14,9 +14,6 @@ from app.schemas import (
     UserResponse,
 )
 from app.database import (
-    SessionLocal,
-    User,
-    WorkoutPlan,
     save_user,
     save_plan,
     update_plan,
@@ -35,6 +32,20 @@ TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
 router = APIRouter()
+
+
+def _user_row(user, plan) -> dict:
+    """Flatten a user and their (optional) plan into a template/API friendly dict."""
+    return {
+        "id": user.id,
+        "name": user.name,
+        "age": user.age,
+        "weight": user.weight,
+        "goal": user.goal,
+        "intensity": user.intensity,
+        "original_plan": plan.original_plan if plan and plan.original_plan else "N/A",
+        "updated_plan": plan.updated_plan if plan and plan.updated_plan else "Not updated",
+    }
 
 
 # -------------------------------------------------------------
@@ -126,33 +137,16 @@ def submit_feedback_form(
 @router.get("/view-all-users", response_class=HTMLResponse)
 def view_all_users(request: Request):
     """Admin view: Displays all registered users and their workout plans."""
-    db = SessionLocal()
-    try:
-        users = db.query(User).all()
-        user_data = []
-        for user in users:
-            plan = db.query(WorkoutPlan).filter(WorkoutPlan.user_id == user.id).first()
-            user_data.append(
-                {
-                    "id": user.id,
-                    "name": user.name,
-                    "age": user.age,
-                    "weight": user.weight,
-                    "goal": user.goal,
-                    "intensity": user.intensity,
-                    "original_plan": plan.original_plan if plan and plan.original_plan else "N/A",
-                    "updated_plan": plan.updated_plan if plan and plan.updated_plan else "Not updated",
-                }
-            )
-        return templates.TemplateResponse(
-            request=request,
-            name="all_users.html",
-            context={
-                "users": user_data,
-            },
-        )
-    finally:
-        db.close()
+    plans_by_user = {plan.user_id: plan for plan in get_all_plans()}
+    user_data = [_user_row(user, plans_by_user.get(user.id)) for user in get_all_users()]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="all_users.html",
+        context={
+            "users": user_data,
+        },
+    )
 
 
 @router.post("/delete-user/{user_id}")
@@ -232,24 +226,8 @@ def update_user_plan(user_id: int, data: FeedbackRequest):
 @router.get("/api/users", response_model=List[UserResponse])
 def get_api_users():
     """5. API: Fetch all users and plans as JSON."""
-    db = SessionLocal()
-    try:
-        users = db.query(User).all()
-        results = []
-        for user in users:
-            plan = db.query(WorkoutPlan).filter(WorkoutPlan.user_id == user.id).first()
-            results.append(
-                UserResponse(
-                    id=user.id,
-                    name=user.name,
-                    age=user.age,
-                    weight=user.weight,
-                    goal=user.goal,
-                    intensity=user.intensity,
-                    original_plan=plan.original_plan if plan else "N/A",
-                    updated_plan=plan.updated_plan if plan and plan.updated_plan else "Not updated",
-                )
-            )
-        return results
-    finally:
-        db.close()
+    plans_by_user = {plan.user_id: plan for plan in get_all_plans()}
+    return [
+        UserResponse(**_user_row(user, plans_by_user.get(user.id)))
+        for user in get_all_users()
+    ]
