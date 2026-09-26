@@ -54,10 +54,8 @@ fitbuddy-ai/
 │   ├── css/style.css             # Gym-photo layout, light theme
 │   └── images/gym-bg.jpg         # Gym photo used as the page backdrop
 ├── tests/                        # Pytest suite (unit + API + web integration)
-├── tasks/                        # plan.md and todo.md tracking
 ├── PLAN.md                       # Specification and architecture
 ├── requirements.txt
-├── pytest.ini
 └── .env.example
 ```
 
@@ -205,8 +203,6 @@ outstanding.
 ## Documentation
 
 - [`PLAN.md`](PLAN.md): specification and architecture
-- [`tasks/plan.md`](tasks/plan.md): phased implementation plan
-- [`tasks/todo.md`](tasks/todo.md): task checklist and verification log
 
 ## Credits
 

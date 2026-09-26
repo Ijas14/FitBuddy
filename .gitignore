@@ -35,6 +35,10 @@ htmlcov/
 *.swp
 .DS_Store
 
+# Local project management, not part of the shipped repo
+tasks/
+pytest.ini
+
 # Playwright artifacts
 .playwright-mcp/
 *.png
