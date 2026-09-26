@@ -228,6 +228,30 @@ textarea:focus {
   font-weight: 500;
 }
 
+/* AI-failure notices: not in the spec DOCX (which has no failure path), added
+   alongside the fallback removal so the exact error reason is visible. */
+.alert-error {
+  background: #fef2f2;
+  border: 1px solid var(--accent-red);
+  border-radius: 12px;
+  color: #7f1d1d;
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.alert-error .error-reason {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.5rem 0 0;
+}
+
+.error-help {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
 /* User summary — bold label followed by the value, as in the spec. */
 .info-grid {
   display: grid;

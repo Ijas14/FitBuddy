@@ -18,14 +18,13 @@ import tempfile
 TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "fitbuddy_test.db")
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 
-# --- Force deterministic offline AI fallback ---------------------------------
-# Tests must never hit the network or consume Gemini quota.
-#
-# Assign an empty string rather than popping the name. The `app.gemini_*`
+# --- Keep the test suite off the Gemini API ---------------------------------
+# The generators no longer fall back; without a key they raise GeminiError.
+# Assign an empty string rather than popping the name: the `app.gemini_*`
 # modules call `load_dotenv()` at import time, and `load_dotenv()` does not
 # override variables that already exist. Popping the key therefore let `.env`
 # re-populate it, so a developer with a real key in `.env` got a test suite
-# that quietly called Gemini and ran ~25x slower.
+# that quietly called Gemini and consumed real quota.
 os.environ["GOOGLE_API_KEY"] = ""
 
 # Remove any leftover test database from a previous run.

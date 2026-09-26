@@ -1,9 +1,10 @@
 import os
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.gemini_error import GeminiError
 from app.schemas import (
     UserInput,
     WorkoutRequest,
@@ -48,6 +49,16 @@ def _user_row(user, plan) -> dict:
     }
 
 
+def _error_page(request: Request, title: str, reason: str, status_code: int = status.HTTP_502_BAD_GATEWAY) -> HTMLResponse:
+    """Render the styled error page carrying the exact failure reason."""
+    return templates.TemplateResponse(
+        request=request,
+        name="error.html",
+        context={"title": title, "reason": reason},
+        status_code=status_code,
+    )
+
+
 # -------------------------------------------------------------
 # Web HTML Routes (Jinja2)
 # -------------------------------------------------------------
@@ -68,7 +79,23 @@ def generate_workout_form(
     goal: str = Form(...),
     intensity: str = Form(...),
 ):
-    """Processes user form submission, saves user & plan, and renders result.html."""
+    """Processes user form submission, saves user & plan, and renders result.html.
+
+    Nothing is persisted unless the plan generation succeeds, so a failed AI
+    call never leaves a half-registered user behind.
+    """
+    try:
+        workout_plan = generate_workout_gemini({"goal": goal, "intensity": intensity})
+    except GeminiError as exc:
+        return _error_page(request, "Workout plan could not be generated", exc.reason)
+
+    try:
+        nutrition_tip = generate_nutrition_tip_with_flash(goal)
+        tip_error = None
+    except GeminiError as exc:
+        nutrition_tip = None
+        tip_error = exc.reason
+
     save_user(
         user_id=user_id,
         name=username,
@@ -77,8 +104,6 @@ def generate_workout_form(
         goal=goal,
         intensity=intensity,
     )
-    workout_plan = generate_workout_gemini({"goal": goal, "intensity": intensity})
-    nutrition_tip = generate_nutrition_tip_with_flash(goal)
     save_plan(user_id=user_id, plan=workout_plan)
 
     return templates.TemplateResponse(
@@ -93,6 +118,7 @@ def generate_workout_form(
             "intensity": intensity,
             "workout_plan": workout_plan,
             "nutrition_tip": nutrition_tip,
+            "tip_error": tip_error,
             "updated_message": None,
         },
     )
@@ -107,15 +133,39 @@ def submit_feedback_form(
     """Revises workout plan based on user feedback and displays updated result.html."""
     user = get_user(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        return _error_page(
+            request,
+            "User not found",
+            f"No user with ID {user_id} exists. Check the ID on the admin dashboard.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
     original_plan = get_original_plan(user_id)
     if not original_plan:
-        raise HTTPException(status_code=404, detail="Original plan not found for this user.")
+        return _error_page(
+            request,
+            "Original plan not found",
+            f"User {user_id} exists but has no stored plan to revise. Generate a plan first.",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
 
-    updated_plan_text = update_workout_plan(original_plan, feedback)
+    try:
+        updated_plan_text = update_workout_plan(original_plan, feedback)
+    except GeminiError as exc:
+        return _error_page(
+            request,
+            "Plan could not be revised",
+            f"{exc.reason} The original plan is unchanged.",
+        )
+
     update_plan(user_id, updated_plan_text)
-    nutrition_tip = generate_nutrition_tip_with_flash(user.goal)
+
+    try:
+        nutrition_tip = generate_nutrition_tip_with_flash(user.goal)
+        tip_error = None
+    except GeminiError as exc:
+        nutrition_tip = None
+        tip_error = exc.reason
 
     return templates.TemplateResponse(
         request=request,
@@ -129,6 +179,7 @@ def submit_feedback_form(
             "intensity": user.intensity,
             "workout_plan": updated_plan_text,
             "nutrition_tip": nutrition_tip,
+            "tip_error": tip_error,
             "updated_message": "Your plan has been updated based on your feedback!",
         },
     )
@@ -171,8 +222,8 @@ def generate_gemini_workout(request: WorkoutRequest):
             }
         )
         return WorkoutResponse(model="gemini-pro", workout_plan=result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except GeminiError as exc:
+        raise HTTPException(status_code=502, detail=exc.reason)
 
 
 @router.get("/nutrition-tip", response_model=NutritionResponse)
@@ -181,35 +232,39 @@ def get_flash_tip(goal: str):
     try:
         tip = generate_nutrition_tip_with_flash(goal)
         return NutritionResponse(goal=goal, nutrition_tip=tip)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except GeminiError as exc:
+        raise HTTPException(status_code=502, detail=exc.reason)
 
 
 @router.post("/generate-plan", response_model=PlanGenerationResponse)
 def generate_plan(user_data: UserInput):
-    """3. API: Save user info & generate plan."""
+    """3. API: Save user info & generate plan.
+
+    Nothing is persisted unless the plan generation succeeds.
+    """
     try:
-        save_user(
-            user_id=user_data.user_id,
-            name=user_data.username,
-            age=user_data.age,
-            weight=user_data.weight,
-            goal=user_data.goal,
-            intensity=user_data.intensity,
-        )
         plan = generate_workout_gemini(
             {
                 "goal": user_data.goal,
                 "intensity": user_data.intensity,
             }
         )
-        save_plan(user_data.user_id, plan)
-        return PlanGenerationResponse(
-            message="Workout plan generated and saved successfully!",
-            workout_plan=plan,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Something went wrong: {str(e)}")
+    except GeminiError as exc:
+        raise HTTPException(status_code=502, detail=exc.reason)
+
+    save_user(
+        user_id=user_data.user_id,
+        name=user_data.username,
+        age=user_data.age,
+        weight=user_data.weight,
+        goal=user_data.goal,
+        intensity=user_data.intensity,
+    )
+    save_plan(user_data.user_id, plan)
+    return PlanGenerationResponse(
+        message="Workout plan generated and saved successfully!",
+        workout_plan=plan,
+    )
 
 
 @router.post("/update-plan/{user_id}", response_model=dict)
@@ -218,7 +273,10 @@ def update_user_plan(user_id: int, data: FeedbackRequest):
     original = get_original_plan(user_id)
     if not original:
         return {"error": "Original plan not found for this user."}
-    updated = update_workout_plan(original, data.feedback)
+    try:
+        updated = update_workout_plan(original, data.feedback)
+    except GeminiError as exc:
+        raise HTTPException(status_code=502, detail=exc.reason)
     update_plan(user_id, updated)
     return {"updated_plan": updated}
 

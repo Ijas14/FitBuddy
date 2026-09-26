@@ -46,7 +46,7 @@ User (Browser / API Client)
    (Workout Gen & Update)     - SQLAlchemy ORM
  - Gemini Flash               - Tables: users, workout_plans
    (Nutrition Tips)
- - Offline Fallback Engine
+ - Error surfaces (exact Gemini failure reasons)
 ```
 
 | Layer | Choice |
@@ -65,8 +65,8 @@ Model assignment:
 - Gemini 1.5 Pro drives `generate_workout_gemini` (workout plans) and `update_workout_plan` (feedback
   revisions).
 - Gemini Flash drives `generate_nutrition_tip_with_flash` (nutrition tips).
-- Each generator falls back to a deterministic local engine when `GOOGLE_API_KEY` is missing or the
-  API is unreachable.
+- Each generator raises `GeminiError` with the exact reason when `GOOGLE_API_KEY` is missing or the
+  API call fails; see §6.4.
 
 ## 3. Directory structure
 
@@ -80,8 +80,8 @@ fitbuddy-ai/
 │   ├── schemas.py               # Pydantic models for validation and serialization
 │   ├── gemini_generator.py      # Gemini 1.5 Pro 7-day workout plan generator
 │   ├── gemini_flash_generator.py# Gemini Flash nutrition tip generator
-│   ├── updated_plan.py          # Gemini 1.5 Pro feedback-based plan refinement
-│   └── nutrition.py             # Domain-specific nutritional helpers/constants
+│   ├── gemini_error.py          # GeminiError + exact-reason extraction
+│   └── updated_plan.py          # Gemini 1.5 Pro feedback-based plan refinement
 ├── templates/
 │   ├── index.html               # Homepage & user input form
 │   ├── result.html              # Plan display, nutrition tip & feedback form
@@ -95,7 +95,7 @@ fitbuddy-ai/
 │   ├── __init__.py
 │   ├── conftest.py              # Test fixtures (isolated SQLite DB, stripped API key)
 │   ├── test_database.py         # Unit tests for CRUD and ORM models
-│   ├── test_ai_generators.py    # Unit tests for Gemini & fallback logic
+│   ├── test_ai_generators.py    # Unit tests for Gemini calls & error reasons
 │   ├── test_web_routes.py       # Integration tests for HTML endpoints
 │   ├── test_api_routes.py       # Integration tests for JSON API endpoints
 │   └── test_e2e_browser.py      # Playwright journey against a live server
@@ -156,7 +156,7 @@ Table `workout_plans`
 - `PlanGenerationResponse`: `message: str`, `workout_plan: str`
 - `UserResponse`: `id`, `name`, `age`, `weight`, `goal`, `intensity`, `original_plan`, `updated_plan`
 
-## 6. AI prompts and fallback behaviour
+## 6. AI prompts and failure behaviour
 
 ### 6.1 Gemini 1.5 Pro: 7-day workout generation (`app/gemini_generator.py`)
 
@@ -199,13 +199,16 @@ User Feedback:
 Based on the feedback, revise the relevant parts of the workout plan. Keep the format and rest of the plan unchanged if not needed.
 ```
 
-### 6.4 Offline fallback engine
+### 6.4 Failure behaviour (no offline fallback)
 
-When `GOOGLE_API_KEY` is absent, invalid, or the call fails, each generator returns a deterministic
-local result keyed on goal (`weight loss`, `muscle gain`, `general fitness`, `flexibility`) and
-intensity. Every call is wrapped in a `try`/`except` that falls through to the local engine, so a
-retired model name or an exhausted quota still produces a response. This keeps local evaluation and
-the test suite working without a key.
+The DOCX specifies no fallback, so there is none. When `GOOGLE_API_KEY` is absent, invalid, or the
+call fails, each generator raises `app.gemini_error.GeminiError` whose message carries the exact
+reason — quota exhaustion with the quota metric and retry hint, an unknown model name, an invalid
+key, a network failure, or an empty/blocked response. Nothing is written to the database when plan
+generation fails, and a failed revision leaves the stored original plan untouched. HTML routes
+render `templates/error.html` with the reason verbatim; JSON API endpoints answer `502` with the
+reason in `detail`. The exception to the 502 rule is the DOCX-specified `POST /update-plan/{user_id}`
+missing-plan contract: HTTP 200 with an `error` key.
 
 ## 7. Routes and interfaces (`app/routes.py`)
 
@@ -213,13 +216,18 @@ the test suite working without a key.
 
 1. `GET /` renders `index.html` with the workout generator form.
 2. `POST /generate-workout` accepts `username`, `user_id`, `age`, `weight`, `goal` and `intensity`
-   as form data. It calls `save_user(...)`, then `generate_workout_gemini(...)` and
-   `generate_nutrition_tip_with_flash(...)`, then `save_plan(...)`, and returns `result.html`
-   carrying the user details, the plan in a `<pre>` block and the nutrition tip.
+   as form data. It calls `generate_workout_gemini(...)` first — on `GeminiError` it renders
+   `error.html` with the exact reason and persists nothing — then
+   `generate_nutrition_tip_with_flash(...)` (a tip failure becomes an inline warning on the result
+   page while the plan still renders), then `save_user(...)` and `save_plan(...)`, and returns
+   `result.html` carrying the user details, the plan in a `<pre>` block and the nutrition tip.
 3. `POST /submit-feedback` accepts `user_id` and `feedback`. It reads the original plan with
    `get_original_plan(user_id)`, calls `update_workout_plan(original_plan, feedback)`, saves with
    `update_plan(user_id, updated_plan)`, and re-renders `result.html` with the user info, the revised
    plan, the nutrition tip and the message "Your plan has been updated based on your feedback!".
+   An unknown user or a missing original plan renders `error.html` with status 404 (this replaces
+   the bare JSON the framework would otherwise emit); a revision failure renders `error.html` with
+   the exact reason and leaves the stored plan unchanged.
 4. `GET /view-all-users` reads users and plans and renders `all_users.html` with columns for user
    ID, name, age, weight, goal and intensity, followed by the original and updated plans in `<pre>`
    blocks and a delete action.
@@ -318,8 +326,8 @@ which undercuts scenario 4.
 ## 9. Verification and quality gates
 
 1. **Database gate.** Pytest covers schema creation, foreign keys and the CRUD helpers.
-2. **AI engine gate.** Tests exercise the prompts, the responses and the fallback path, both with and
-   without an API key.
+2. **AI engine gate.** Tests exercise the prompts, the success paths with a mocked SDK call, and the
+   error paths (missing key, quota failure, empty/blocked response), never the network.
 3. **API and route gate.** Integration tests check status codes, HTML rendering, form submission and
    the JSON contracts.
 4. **End-to-end browser gate.** A Playwright test confirms the full journey: load the home page, fill

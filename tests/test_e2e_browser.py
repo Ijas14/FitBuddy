@@ -92,6 +92,14 @@ def test_full_user_journey():
             page.get_by_role("button", name="Generate Plan").click()
 
         expect(page).to_have_url(re.compile(r"/generate-workout$"))
+
+        # Without a fallback, plan generation fails visibly when Gemini is
+        # unavailable (quota, key, model name). The journey needs live AI, so
+        # surface the exact reason and skip rather than fail.
+        error_reason = page.locator(".error-reason")
+        if error_reason.count() > 0:
+            pytest.skip(f"AI unavailable: {error_reason.first.inner_text()[:150]}")
+
         expect(page.locator("body")).to_contain_text("Playwright Journey")
         expect(page.locator("body")).to_contain_text("7777")
 
@@ -102,8 +110,14 @@ def test_full_user_journey():
         assert "Main Workout" in plan_text
         assert "Cooldown" in plan_text
 
-        nutrition_tip = page.locator(".nutrition-tip-box").inner_text()
-        assert len(nutrition_tip.strip()) > 20
+        # The tip card shows either the generated tip or, when Flash alone
+        # failed, an inline error box with the reason.
+        tip_box = page.locator(".nutrition-tip-box")
+        tip_error = page.locator(".alert-error")
+        if tip_box.count() > 0:
+            assert len(tip_box.inner_text().strip()) > 20
+        else:
+            assert tip_error.count() > 0, "neither a nutrition tip nor an error reason is shown"
 
         # --- 3. Submit feedback and confirm the plan is updated --------
         # The spec shows the feedback form's User ID field starting empty with

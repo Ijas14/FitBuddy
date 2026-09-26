@@ -9,6 +9,20 @@ The stack is FastAPI, SQLAlchemy with SQLite, and Jinja2 templates.
 The project directory is named `fitbuddy-ai`. "FitBuddy" remains the product name used in the UI,
 the API title, and the documentation headings.
 
+## Error handling (no offline fallback)
+
+The design DOCX shows plain, unguarded Gemini calls and specifies no fallback, so there is none:
+when a Gemini call cannot be made or fails, every generator raises `GeminiError` and the failure is
+surfaced with its exact reason.
+
+- HTML routes render a styled error page (`templates/error.html`) showing the reason verbatim —
+  quota exhaustion, invalid key, unknown model name, network failure, or an empty/blocked response.
+- JSON API endpoints answer `502 Bad Gateway` with the reason in the `detail` field.
+- A failed plan generation persists nothing, so the database never holds a half-registered user;
+  a failed plan revision leaves the stored original plan untouched.
+- If the workout plan succeeds but the nutrition tip fails, the result page shows the plan with an
+  inline error box explaining exactly why the tip is missing.
+
 ## Features
 
 | Scenario | What it does |
@@ -27,14 +41,15 @@ fitbuddy-ai/
 │   ├── routes.py                 # HTML form routes + JSON REST API routes
 │   ├── database.py               # SQLAlchemy models & CRUD helpers
 │   ├── schemas.py                # Pydantic validation models
+│   ├── gemini_error.py           # GeminiError + exact-reason extraction
 │   ├── gemini_generator.py       # Gemini 1.5 Pro – 7-day workout generation
 │   ├── gemini_flash_generator.py # Gemini Flash – nutrition tips
-│   ├── updated_plan.py           # Gemini 1.5 Pro – feedback-based plan revision
-│   └── nutrition.py              # Goal-based nutrition guidance helpers
+│   └── updated_plan.py           # Gemini 1.5 Pro – feedback-based plan revision
 ├── templates/
 │   ├── index.html                # User input form
 │   ├── result.html               # Plan, nutrition tip & feedback form
-│   └── all_users.html            # Admin dashboard
+│   ├── all_users.html            # Admin dashboard
+│   └── error.html                # Styled error page with the exact failure reason
 ├── static/
 │   ├── css/style.css             # Gym-photo layout, light theme
 │   └── images/gym-bg.jpg         # Gym photo used as the page backdrop
@@ -73,20 +88,20 @@ Then edit `.env` and set your Gemini key:
 GOOGLE_API_KEY=your_gemini_api_key_here
 ```
 
-The app runs without a key. A deterministic offline fallback stands in for the model, so a fresh clone
-with no Google account still serves every page and passes the suite.
+The app will not serve AI content without a key: generation attempts return an error page (HTML) or
+a `502` with the reason (API) saying the key is missing.
 
 ### Model names
 
 The DOCX specifies `gemini-1.5-pro` and `gemini-1.5-flash`. Google has retired both, and they now
-return 404. Because the generators swallow the error and return the local plan, a retired model name
-looks identical to a working one from the outside. `.env.example` uses current names that keep the
-DOCX's split of Pro for workout plans and Flash for nutrition tips.
+return 404. With no fallback, a retired model name surfaces as a styled error page (or API `502`)
+saying the model was not found. `.env.example` uses current names that keep the DOCX's split of
+Pro for workout plans and Flash for nutrition tips.
 
-Free-tier keys have no Pro quota, so `gemini-3.1-pro-preview` answers with 429 and workout plans still
-come from the fallback until billing is enabled on the project. Nutrition tips run live on the free
-tier. To see which path produced a given plan, compare it against
-`gemini_generator._get_fallback_workout_plan()`.
+Free-tier keys have no Pro quota, so `gemini-3.1-pro-preview` answers with 429 and workout plan
+generation fails with the quota reason until billing is enabled on the project. The Flash free tier
+allows 20 requests per day; once exhausted, nutrition tips fail the same way until the daily reset.
+The exact reason — status code, quota metric, retry hint — is shown verbatim on the error page.
 
 ### 4. Run the server
 
@@ -105,7 +120,7 @@ Then open:
 PYTHONPATH=. python -m pytest tests/ -v
 ```
 
-The suite covers database CRUD, Pydantic validation, the AI generators and their fallback path, the
+The suite covers database CRUD, Pydantic validation, the AI generators and their error paths, the
 HTML form routes, and the JSON API contracts.
 
 `tests/test_e2e_browser.py` drives a real browser through the whole journey with Playwright. It skips
@@ -138,6 +153,8 @@ PYTHONPATH=. python -m pytest tests/ -q
 | `POST` | `/update-plan/{user_id}` | `{"feedback": str}` | `{"updated_plan": str}` |
 | `GET` | `/api/users` | none | `[UserResponse, ...]` |
 
+`POST /generate-workout/gemini`, `GET /nutrition-tip` and `POST /generate-plan` answer `502 Bad
+Gateway` with the exact Gemini failure reason in `detail` when the model call fails.
 `POST /update-plan/{user_id}` answers with HTTP 200 and an `error` key when no plan exists for that
 user. That status code is what the source specification calls for, so it is intentional.
 

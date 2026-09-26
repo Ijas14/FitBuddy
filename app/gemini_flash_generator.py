@@ -1,7 +1,7 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-from app.nutrition import get_quick_nutrition_guidance
+from app.gemini_error import GeminiError, no_model_reason, reason_from_exception, text_or_raise
 
 load_dotenv()
 
@@ -27,18 +27,21 @@ def generate_nutrition_tip_with_flash(goal: str) -> str:
 
     Returns:
         str: Generated tip.
+
+    Raises:
+        GeminiError: With the exact reason when the client is unconfigured,
+            the API call fails, or the model returns no usable text.
     """
+    if model is None:
+        raise GeminiError(no_model_reason())
+
     prompt = (
         f"Give one clear, helpful nutrition or recovery tip for someone focused on '{goal}'. "
         "The tip should be practical, friendly, and easy to understand."
     )
 
-    if model is not None:
-        try:
-            response = model.generate_content(prompt)
-            if response and hasattr(response, "text") and response.text:
-                return response.text.strip()
-        except Exception:
-            pass
-
-    return get_quick_nutrition_guidance(goal)
+    try:
+        response = model.generate_content(prompt)
+    except Exception as exc:
+        raise GeminiError(reason_from_exception(exc)) from exc
+    return text_or_raise(response, "nutrition tip")

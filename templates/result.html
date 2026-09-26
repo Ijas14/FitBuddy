@@ -67,9 +67,16 @@
     <!-- Nutrition Tip Card -->
     <div class="card">
       <h2>💡 Nutrition Tip</h2>
+      {% if nutrition_tip %}
       <div class="nutrition-tip-box">
         {{ nutrition_tip }}
       </div>
+      {% elif tip_error %}
+      <div class="alert-error">
+        <strong>Nutrition tip could not be generated. Exact reason:</strong>
+        <pre class="error-reason">{{ tip_error }}</pre>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Feedback & Plan Refinement Card -->
