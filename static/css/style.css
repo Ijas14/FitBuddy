@@ -1,15 +1,33 @@
+/* ==========================================================================
+   FitBuddy – AI Fitness Plan Generator
+   Design system follows the project specification DOCX: bright gym-themed
+   photograph behind translucent white cards, Material-blue primary actions,
+   Roboto typography and left-aligned form labels.
+
+   Every value below was sampled from the DOCX's own screenshots in
+   word/media/ rather than eyeballed — see tasks/todo.md for the readings.
+   ========================================================================== */
+
 :root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: rgba(30, 41, 59, 0.9);
-  --border-color: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --accent-orange: #f97316;
-  --accent-orange-hover: #ea580c;
-  --accent-cyan: #06b6d4;
-  --accent-green: #10b981;
-  --accent-red: #ef4444;
+  --brand: #3b82f6;
+  --brand-hover: #2563eb;
+  --brand-table: #1e88e5;
+  --ink: #1f2937;          /* heading colour, sampled from the h1/h2 text */
+  --label-ink: #111827;    /* form label colour, sampled separately */
+  --body-text: #33404f;
+  --text-muted: #5f6b7a;
+  --surface: #ffffff;
+  --page-flat: #f0f4f8;    /* admin page background, flat in the spec */
+  --border-color: #dbe2ea;
+  --field-border: #cccccc; /* input/select/textarea outline in the spec */
+  --table-border: #cccccc;
+  --card-border: #e6e6e6;
+  --field-bg: #ffffff;
+  --pre-bg: #f3f4f6;
+  --accent-cyan: #0891b2;
+  --accent-green: #16a34a;
+  --alert-text: #0a8a3e;
+  --accent-red: #dc2626;
 }
 
 * {
@@ -19,21 +37,32 @@
 }
 
 body {
-  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-primary);
-  background-image: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.92)), url('/static/images/gym-bg.jpg');
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #eef2f6;
+  /* The spec's screenshots show the photograph at full strength — sampling
+     the raw asset against the reference gives a white-overlay alpha of ~0.00,
+     so no wash is layered on top of the image. */
+  background-image: url('/static/images/gym-bg.jpg?v=2');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  color: var(--text-main);
+  color: var(--body-text);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
+/* The spec's admin dashboard is a flat, un-styled table view: no photograph
+   behind it and no card wrapper, so the table sits straight on the page. */
+body.page-flat {
+  background-color: var(--page-flat);
+  background-image: none;
+  background-attachment: scroll;
+}
+
 header {
-  padding: 1.25rem 2rem;
-  background: rgba(15, 23, 42, 0.85);
+  padding: 1.1rem 2rem;
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -44,7 +73,7 @@ header {
 .brand {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--accent-orange);
+  color: var(--ink);
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -60,51 +89,57 @@ header {
 }
 
 .nav-links a:hover {
-  color: var(--accent-cyan);
+  color: var(--brand);
 }
 
 .container {
   flex: 1;
   width: 100%;
-  max-width: min(1200px, 100%);
+  max-width: min(860px, 100%);
   margin: clamp(1.25rem, 3vw, 2.5rem) auto;
   padding-inline: clamp(0.75rem, 2.5vw, 2rem);
 }
 
+/* The result page stacks long plans and forms, so it gets a wider column than
+   the home form (the spec's two card widths differ by roughly 1.3x). */
+.container-wide {
+  max-width: min(1100px, 100%);
+}
+
 .card {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 32, 58, 0.12);
 }
 
 .card h1,
 .card h2 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   margin-bottom: 1.25rem;
-  color: var(--accent-orange);
-  border-bottom: 2px solid var(--border-color);
-  padding-bottom: 0.5rem;
+  color: var(--ink);
+  text-align: center;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.card h1 {
-  font-size: 1.6rem;
+.card h2 {
+  font-size: 1.35rem;
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.15rem;
 }
 
 label {
   display: block;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 700;
   margin-bottom: 0.4rem;
-  color: var(--text-main);
+  color: var(--label-ink);
 }
 
 .form-help {
@@ -118,29 +153,40 @@ input[type="number"],
 select,
 textarea {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: #0f172a;
-  border: 1px solid var(--border-color);
+  padding: 0.7rem 0.9rem;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
   border-radius: 8px;
-  color: var(--text-main);
+  color: var(--body-text);
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* The spec's feedback textarea renders in the browser's default monospace
+   face, while the single-line inputs stay in the page font. */
+textarea {
+  font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #757575;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--accent-orange);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
 }
 
 .btn {
   display: inline-block;
-  background: var(--accent-orange);
+  background: var(--brand);
   color: #ffffff;
-  padding: 0.85rem 1.75rem;
+  padding: 0.8rem 1.75rem;
   font-size: 1rem;
   font-weight: 600;
   border: none;
@@ -152,16 +198,16 @@ textarea:focus {
 }
 
 .btn:hover {
-  background: var(--accent-orange-hover);
+  background: var(--brand-hover);
 }
 
 .btn-secondary {
-  background: var(--border-color);
-  color: var(--text-main);
+  background: #e2e8f0;
+  color: var(--ink);
 }
 
 .btn-secondary:hover {
-  background: #475569;
+  background: #cbd5e1;
 }
 
 .btn-danger {
@@ -171,108 +217,109 @@ textarea:focus {
 }
 
 .btn-danger:hover {
-  background: #dc2626;
+  background: #b91c1c;
 }
 
+/* The spec shows the post-feedback confirmation as plain green text with no
+   surrounding panel. */
 .alert-success {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid var(--accent-green);
-  color: #34d399;
-  padding: 1rem;
-  border-radius: 8px;
+  color: var(--alert-text);
   margin-bottom: 1.5rem;
   font-weight: 500;
 }
 
+/* User summary — bold label followed by the value, as in the spec. */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.4rem;
 }
 
 .info-item {
-  background: #0f172a;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border-left: 3px solid var(--accent-cyan);
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 1rem;
 }
 
 .info-item span.label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .info-item span.val {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-main);
+  color: var(--body-text);
 }
 
 pre.formatted-plan {
-  background: #0b1120;
-  border: 1px solid var(--border-color);
+  background: var(--pre-bg);
+  border: 1px solid var(--card-border);
   padding: 1.25rem;
-  border-radius: 8px;
+  border-radius: 10px;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #e2e8f0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #1f2933;
 }
 
 .nutrition-tip-box {
-  background: rgba(6, 182, 212, 0.1);
-  border-left: 4px solid var(--accent-cyan);
-  padding: 1.25rem;
-  border-radius: 8px;
-  line-height: 1.6;
+  line-height: 1.65;
   font-size: 1.05rem;
+  color: var(--body-text);
 }
 
 table.data-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
+  background: var(--surface);
 }
 
 table.data-table th,
 table.data-table td {
-  padding: 0.85rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.8rem;
+  text-align: center;
+  border: 1px solid var(--table-border);
   vertical-align: top;
 }
 
+/* The two plan columns hold pre-formatted text, so they read left-aligned. */
+table.data-table th.plan-col,
+table.data-table td.plan-col {
+  text-align: left;
+}
+
 table.data-table th {
-  background: #0f172a;
-  color: var(--accent-orange);
+  background: var(--brand-table);
+  color: #ffffff;
   font-weight: 600;
   font-size: 0.9rem;
 }
 
-table.data-table tr:hover {
-  background: rgba(51, 65, 85, 0.3);
+table.data-table tbody tr:nth-child(even) {
+  background: #f9f9f9;
 }
 
+table.data-table tbody tr:hover {
+  background: #eef4ff;
+}
+
+/* The spec shows whole plans in the admin table rather than a clipped box. */
 table.data-table pre {
-  max-height: 180px;
-  overflow-y: auto;
-  font-size: 0.8rem;
-  background: #0b1120;
-  padding: 0.5rem;
-  border-radius: 4px;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2933;
 }
 
 footer {
   text-align: center;
-  padding: 1.5rem;
+  padding: 1.25rem;
   color: var(--text-muted);
   font-size: 0.85rem;
   border-top: 1px solid var(--border-color);
-  background: rgba(15, 23, 42, 0.95);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .action-group {
@@ -289,24 +336,38 @@ footer {
   text-align: center;
 }
 
+/* The spec centres the dashboard heading; the register button is an addition,
+   so it is pinned to the right rather than pushing the heading off-centre. */
 .page-header {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  position: relative;
+}
+
+.page-header .btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .page-header h1 {
-  border-bottom: none;
   margin-bottom: 0;
-  padding-bottom: 0;
-  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+  text-align: center;
 }
 
-.container-wide {
-  max-width: min(1600px, 100%);
+/* The admin table runs the full page width, as it does in the spec. */
+.container-admin {
+  max-width: min(1500px, 100%);
+}
+
+.table-scroll {
+  overflow-x: auto;
 }
 
 @media (max-width: 640px) {
@@ -315,17 +376,9 @@ footer {
     align-items: stretch;
   }
   .page-header .btn {
+    position: static;
+    transform: none;
     width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-  table.data-table {
-    display: block;
-    overflow-x: auto;
   }
   .action-group {
     flex-direction: column;
@@ -333,6 +386,10 @@ footer {
   }
   .action-group .btn {
     width: 100%;
+  }
+  table.data-table {
+    display: block;
+    overflow-x: auto;
   }
 }
 
@@ -351,9 +408,6 @@ footer {
   .nav-links a {
     margin-left: 0;
   }
-  .card {
-    padding: clamp(1rem, 3vw, 2rem);
-  }
 }
 
 @media (min-width: 769px) {
@@ -365,9 +419,12 @@ footer {
 
 @media (min-width: 1400px) {
   .container {
-    max-width: 1320px;
+    max-width: 900px;
   }
   .container.container-wide {
-    max-width: 1560px;
+    max-width: 1160px;
+  }
+  .container.container-admin {
+    max-width: 1440px;
   }
 }
