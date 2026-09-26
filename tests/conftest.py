@@ -20,7 +20,13 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
 
 # --- Force deterministic offline AI fallback ---------------------------------
 # Tests must never hit the network or consume Gemini quota.
-os.environ.pop("GOOGLE_API_KEY", None)
+#
+# Assign an empty string rather than popping the name. The `app.gemini_*`
+# modules call `load_dotenv()` at import time, and `load_dotenv()` does not
+# override variables that already exist. Popping the key therefore let `.env`
+# re-populate it, so a developer with a real key in `.env` got a test suite
+# that quietly called Gemini and ran ~25x slower.
+os.environ["GOOGLE_API_KEY"] = ""
 
 # Remove any leftover test database from a previous run.
 if os.path.exists(TEST_DB_PATH):

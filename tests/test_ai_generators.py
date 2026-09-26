@@ -1,8 +1,22 @@
 import pytest
+from app import gemini_generator, gemini_flash_generator, updated_plan
 from app.gemini_generator import generate_workout_gemini
 from app.gemini_flash_generator import generate_nutrition_tip_with_flash
 from app.updated_plan import update_workout_plan
 from app.nutrition import get_quick_nutrition_guidance
+
+
+def test_generators_are_forced_into_fallback_mode():
+    """The suite must never reach Gemini, whatever `.env` holds.
+
+    `conftest.py` assigns an empty key rather than popping the name, because
+    the `app.gemini_*` modules run `load_dotenv()` at import time and would
+    otherwise restore a developer's real key. Without this assertion the suite
+    still passed while quietly calling the API, just ~25x slower.
+    """
+    for module in (gemini_generator, gemini_flash_generator, updated_plan):
+        assert module.model is None, f"{module.__name__} built a live model"
+        assert module.API_KEY == "", f"{module.__name__} saw an API key"
 
 
 def test_generate_workout_gemini_fallback():
