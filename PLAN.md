@@ -70,6 +70,31 @@ Model assignment:
 
 ## 3. Directory structure
 
+The DOCX does specify a tree, but only as a screenshot: `word/media/image2.png`
+(763x597). It reads:
+
+```
+fitbuddy/
+├── requirements.txt
+├── app/
+│   ├── main.py, routes.py, database.py, schemas.py
+│   ├── gemini_generator.py, gemini_flash_generator.py, updated_plan.py
+│   └── nutrition.py            # "Handles nutrition-specific logic (optional)"
+├── templates/  index.html, result.html, all_users.html
+├── static/images/gym-bg.jpg
+└── fitbuddy.db                 # local SQLite, auto-generated
+```
+
+The implemented tree below matches it file for file, with four deliberate
+deviations, all of them additive or cosmetic:
+
+| Deviation | Reason |
+|---|---|
+| `app/gemini_error.py` and `templates/error.html` | error handling with the exact failure reason; the DOCX has no failure path (§6.4) |
+| `static/css/style.css` | the DOCX embeds CSS in each template, but one stylesheet keeps the design system of §8.1 in a single place |
+| `fitbuddy-ai/` as the root name | the DOCX tree says `fitbuddy/`; the directory name is not part of the running app |
+| `tests/` | not in the tree, but §5.2 of the DOCX requires testing the local deployment |
+
 ```
 fitbuddy-ai/
 ├── app/
@@ -81,7 +106,8 @@ fitbuddy-ai/
 │   ├── gemini_generator.py      # Gemini 1.5 Pro 7-day workout plan generator
 │   ├── gemini_flash_generator.py# Gemini Flash nutrition tip generator
 │   ├── gemini_error.py          # GeminiError + exact-reason extraction
-│   └── updated_plan.py          # Gemini 1.5 Pro feedback-based plan refinement
+│   ├── updated_plan.py          # Gemini 1.5 Pro feedback-based plan refinement
+│   └── nutrition.py             # Goal classification + per-goal nutrition focus
 ├── templates/
 │   ├── index.html               # Homepage & user input form
 │   ├── result.html              # Plan display, nutrition tip & feedback form

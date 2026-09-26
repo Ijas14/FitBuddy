@@ -44,7 +44,8 @@ fitbuddy-ai/
 │   ├── gemini_error.py           # GeminiError + exact-reason extraction
 │   ├── gemini_generator.py       # Gemini Pro – 7-day workout generation
 │   ├── gemini_flash_generator.py # Gemini Flash – nutrition tips
-│   └── updated_plan.py           # Gemini Pro – feedback-based plan revision
+│   ├── updated_plan.py           # Gemini Pro – feedback-based plan revision
+│   └── nutrition.py              # Goal classification + per-goal nutrition focus
 ├── templates/
 │   ├── index.html                # User input form
 │   ├── result.html               # Plan, nutrition tip & feedback form

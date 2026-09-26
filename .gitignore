@@ -39,6 +39,11 @@ htmlcov/
 tasks/
 pytest.ini
 
+# Demo harness and recordings, not part of the shipped app
+demo/
+demo_server.py
+demo.db
+
 # Playwright artifacts
 .playwright-mcp/
 *.png
