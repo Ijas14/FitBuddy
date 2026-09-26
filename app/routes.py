@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.gemini_error import GeminiError
+from app.gemini_generator import GeminiError
 from app.schemas import (
     UserInput,
     WorkoutRequest,
@@ -53,8 +53,8 @@ def _error_page(request: Request, title: str, reason: str, status_code: int = st
     """Render the styled error page carrying the exact failure reason."""
     return templates.TemplateResponse(
         request=request,
-        name="error.html",
-        context={"title": title, "reason": reason},
+        name="result.html",
+        context={"error_title": title, "error_reason": reason},
         status_code=status_code,
     )
 

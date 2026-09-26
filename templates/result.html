@@ -4,7 +4,465 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FitBuddy – Your Personalized Workout Plan</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Inlined per the DOCX, Activity 4.1: "Embedded CSS styles were
+       applied directly in each HTML file." This block was static/css/style.css,
+       which the DOCX project tree does not list. -->
+  <style>
+/* ==========================================================================
+   FitBuddy – AI Fitness Plan Generator
+   Design system follows the project specification DOCX: bright gym-themed
+   photograph behind translucent white cards, Material-blue primary actions,
+   Roboto typography and left-aligned form labels.
+
+   Every value below was sampled from the DOCX's own screenshots in
+   word/media/ rather than eyeballed — see tasks/todo.md for the readings.
+   ========================================================================== */
+
+:root {
+  --brand: #3b82f6;
+  --brand-hover: #2563eb;
+  --brand-table: #1e88e5;
+  --ink: #1f2937;          /* heading colour, sampled from the h1/h2 text */
+  --label-ink: #111827;    /* form label colour, sampled separately */
+  --body-text: #33404f;
+  --text-muted: #5f6b7a;
+  --surface: #ffffff;
+  --page-flat: #f0f4f8;    /* admin page background, flat in the spec */
+  --border-color: #dbe2ea;
+  --field-border: #cccccc; /* input/select/textarea outline in the spec */
+  --table-border: #cccccc;
+  --card-border: #e6e6e6;
+  --field-bg: #ffffff;
+  --pre-bg: #f3f4f6;
+  --accent-cyan: #0891b2;
+  --accent-green: #16a34a;
+  --alert-text: #0a8a3e;
+  --accent-red: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #eef2f6;
+  /* The spec's screenshots show the photograph at full strength — sampling
+     the raw asset against the reference gives a white-overlay alpha of ~0.00,
+     so no wash is layered on top of the image. */
+  background-image: url('/static/images/gym-bg.jpg?v=2');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: var(--body-text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The spec's admin dashboard is a flat, un-styled table view: no photograph
+   behind it and no card wrapper, so the table sits straight on the page. */
+body.page-flat {
+  background-color: var(--page-flat);
+  background-image: none;
+  background-attachment: scroll;
+}
+
+header {
+  padding: 1.1rem 2rem;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 1.5rem;
+  transition: color 0.2s ease;
+}
+
+.nav-links a:hover {
+  color: var(--brand);
+}
+
+.container {
+  flex: 1;
+  width: 100%;
+  max-width: min(860px, 100%);
+  margin: clamp(1.25rem, 3vw, 2.5rem) auto;
+  padding-inline: clamp(0.75rem, 2.5vw, 2rem);
+}
+
+/* The result page stacks long plans and forms, so it gets a wider column than
+   the home form (the spec's two card widths differ by roughly 1.3x). */
+.container-wide {
+  max-width: min(1100px, 100%);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 32, 58, 0.12);
+}
+
+.card h1,
+.card h2 {
+  font-size: 1.6rem;
+  margin-bottom: 1.25rem;
+  color: var(--ink);
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.card h2 {
+  font-size: 1.35rem;
+}
+
+.form-group {
+  margin-bottom: 1.15rem;
+}
+
+label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: var(--label-ink);
+}
+
+.form-help {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+  color: var(--body-text);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* The spec's feedback textarea renders in the browser's default monospace
+   face, while the single-line inputs stay in the page font. */
+textarea {
+  font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #757575;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.btn {
+  display: inline-block;
+  background: var(--brand);
+  color: #ffffff;
+  padding: 0.8rem 1.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn:hover {
+  background: var(--brand-hover);
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  background: #cbd5e1;
+}
+
+.btn-danger {
+  background: var(--accent-red);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* The spec shows the post-feedback confirmation as plain green text with no
+   surrounding panel. */
+.alert-success {
+  color: var(--alert-text);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+}
+
+/* AI-failure notices: not in the spec DOCX (which has no failure path), added
+   alongside the fallback removal so the exact error reason is visible. */
+.alert-error {
+  background: #fef2f2;
+  border: 1px solid var(--accent-red);
+  border-radius: 12px;
+  color: #7f1d1d;
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.alert-error .error-reason {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.5rem 0 0;
+}
+
+.error-help {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* User summary — bold label followed by the value, as in the spec. */
+.info-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.info-item {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 1rem;
+}
+
+.info-item span.label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.info-item span.val {
+  color: var(--body-text);
+}
+
+pre.formatted-plan {
+  background: var(--pre-bg);
+  border: 1px solid var(--card-border);
+  padding: 1.25rem;
+  border-radius: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'Roboto Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #1f2933;
+}
+
+.nutrition-tip-box {
+  line-height: 1.65;
+  font-size: 1.05rem;
+  color: var(--body-text);
+}
+
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background: var(--surface);
+}
+
+table.data-table th,
+table.data-table td {
+  padding: 0.8rem;
+  text-align: center;
+  border: 1px solid var(--table-border);
+  vertical-align: top;
+}
+
+/* The two plan columns hold pre-formatted text, so they read left-aligned. */
+table.data-table th.plan-col,
+table.data-table td.plan-col {
+  text-align: left;
+}
+
+table.data-table th {
+  background: var(--brand-table);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+table.data-table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+table.data-table tbody tr:hover {
+  background: #eef4ff;
+}
+
+/* The spec shows whole plans in the admin table rather than a clipped box. */
+table.data-table pre {
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2933;
+}
+
+footer {
+  text-align: center;
+  padding: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.action-group .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+
+/* The spec centres the dashboard heading; the register button is an addition,
+   so it is pinned to the right rather than pushing the heading off-centre. */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.page-header .btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.page-header h1 {
+  margin-bottom: 0;
+  font-size: clamp(1.25rem, 2.5vw, 1.6rem);
+  text-align: center;
+}
+
+/* The admin table runs the full page width, as it does in the spec. */
+.container-admin {
+  max-width: min(1500px, 100%);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .page-header .btn {
+    position: static;
+    transform: none;
+    width: 100%;
+  }
+  .action-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .action-group .btn {
+    width: 100%;
+  }
+  table.data-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 1rem clamp(0.75rem, 2.5vw, 1.5rem);
+  }
+  .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    width: 100%;
+  }
+  .nav-links a {
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: 900px;
+  }
+  .container.container-wide {
+    max-width: 1160px;
+  }
+  .container.container-admin {
+    max-width: 1440px;
+  }
+}
+  </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -20,6 +478,25 @@
   </header>
 
   <main class="container container-wide">
+    {% if error_reason %}
+    <div class="card">
+      <h1>⚠️ {{ error_title }}</h1>
+      <div class="alert-error">
+        <strong>Exact reason:</strong>
+        <pre class="error-reason">{{ error_reason }}</pre>
+      </div>
+      <p class="error-help">
+        Fix the cause above and try again. If the reason mentions quota or billing,
+        the Gemini API key's plan is limiting requests; if it mentions the model name,
+        adjust <code>GEMINI_PRO_MODEL</code> / <code>GEMINI_FLASH_MODEL</code> in <code>.env</code>
+        and restart the server.
+      </p>
+      <div class="action-group">
+        <a href="/" class="btn btn-secondary">Back to Home</a>
+        <a href="/view-all-users" class="btn btn-secondary">Admin Dashboard</a>
+      </div>
+    </div>
+    {% else %}
     {% if updated_message %}
     <div class="alert-success">
       ✅ {{ updated_message }}
@@ -101,6 +578,7 @@
         </div>
       </form>
     </div>
+    {% endif %}
   </main>
 
   <footer>

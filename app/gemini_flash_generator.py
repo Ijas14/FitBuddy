@@ -1,7 +1,7 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
-from app.gemini_error import GeminiError, no_model_reason, reason_from_exception, text_or_raise
+from app.gemini_generator import GeminiError, no_model_reason, reason_from_exception, text_or_raise
 
 load_dotenv()
 

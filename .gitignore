@@ -50,3 +50,14 @@ demo.db
 
 # OS
 Thumbs.db
+
+# Local archive: kept on disk for development, never pushed. The tracked set is
+# exactly the DOCX project tree (word/media/image2.png).
+tests/
+README.md
+PLAN.md
+.env.example
+.zcodeignore
+*.docx
+app/__init__.py
+fitbuddy.db
