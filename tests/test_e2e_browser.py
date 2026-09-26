@@ -106,6 +106,9 @@ def test_full_user_journey():
         assert len(nutrition_tip.strip()) > 20
 
         # --- 3. Submit feedback and confirm the plan is updated --------
+        # The spec shows the feedback form's User ID field starting empty with
+        # its placeholder visible, so the journey types the ID in explicitly.
+        page.get_by_label("Your Unique User ID:").fill("7777")
         page.get_by_label("Your Feedback:").fill("Add more cardio and yoga sessions.")
         with page.expect_navigation(wait_until="domcontentloaded"):
             page.get_by_role("button", name="Submit Feedback").click()
@@ -128,10 +131,10 @@ def test_full_user_journey():
 
         headers = [h.inner_text().strip() for h in page.locator("table.data-table thead th").all()]
         assert headers[:8] == [
-            "ID",
+            "User ID",
             "Name",
             "Age",
-            "Weight",
+            "Weight (kg)",
             "Goal",
             "Intensity",
             "Original Plan",
