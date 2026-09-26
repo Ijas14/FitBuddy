@@ -1,21 +1,32 @@
 # FitBuddy – AI Fitness Plan Generator using Gemini Models
-## Comprehensive Project Specification & Implementation Plan
 
----
+Specification and architecture for the implementation.
 
-## 1. Executive Summary & Objective
+The source of truth for the interface is the project DOCX, including the 28 screenshots embedded in
+it. `PLAN.md` is a derived document: where the two disagree, the DOCX wins. Section 8 records the
+measured values and how they were obtained.
 
-**FitBuddy** is a full-stack AI-powered health and fitness web application designed to generate personalized 7-day workout plans and tailored nutrition/recovery advice. Built with **FastAPI**, **SQLAlchemy (SQLite)**, **Google Gemini AI models (Gemini 1.5 Pro & Gemini Flash)**, and **Jinja2 templating**, FitBuddy enables users to input their demographic and fitness profile, receive custom routines, dynamically adapt their plans via feedback-driven AI regeneration, and offers administrators/trainers a centralized dashboard to track all user profiles and plan histories.
+## 1. Objective
 
-### Key Capabilities & Scenarios
-- **Scenario 1 (7-Day Workout & Nutrition Generation)**: Users input Name, User ID, Age, Weight (kg), Fitness Goal (e.g., Weight Loss, Muscle Gain, Flexibility), and Preferred Workout Intensity (Low, Medium, High). Gemini 1.5 Pro generates a structured day-by-day regimen (Warm-up, Main Workout, Cooldown), while Gemini Flash generates actionable, goal-aligned nutrition/recovery advice. Both user metrics and generated plans are stored in SQLite.
-- **Scenario 2 (Feedback-Driven Plan Refinement)**: Users provide their User ID and feedback (e.g., "add more cardio", "include yoga on rest days"). Gemini 1.5 Pro consumes the original plan and user feedback to regenerate a revised plan, preserving unaffected days while tailoring requested modifications. An updated plan is saved to SQLite, and an update confirmation is shown.
-- **Scenario 3 (Standalone Nutrition & Recovery Microservice)**: Fast, lightweight endpoint powered by Gemini Flash that delivers practical dietary and recovery tips.
-- **Scenario 4 (Coach / Admin Management Dashboard)**: Comprehensive dashboard (`/view-all-users`) displaying all registered members with their metrics, original AI plans, and updated plans in a clear table format, with admin deletion capability.
+FitBuddy generates 7-day workout plans and nutrition or recovery advice from a user's demographic and
+fitness profile. Feedback revises a stored plan, and an admin dashboard shows every user alongside
+their plan history.
 
----
+Four scenarios drive the design:
 
-## 2. Technical Architecture & Tech Stack
+- **Plan generation.** The user submits name, user ID, age, weight in kilograms, fitness goal and
+  preferred intensity (Low, Medium or High). Gemini 1.5 Pro returns a day-by-day regimen, and Gemini
+  Flash returns advice matched to the goal. Both the profile and the plan are written to SQLite.
+- **Feedback-driven refinement.** The user submits their user ID plus a request such as "add more
+  cardio" or "include yoga on rest days". Gemini 1.5 Pro reads the original plan and the request and
+  returns a revision, leaving days that need no change alone. The revision is stored and a
+  confirmation is shown.
+- **Standalone nutrition and recovery endpoint.** A small Gemini Flash endpoint that returns a single
+  practical tip.
+- **Coach or admin dashboard.** `/view-all-users` lists registered users with their metrics, the
+  original plan and the updated plan in one table, with per-user deletion.
+
+## 2. Architecture and tech stack
 
 ```
 User (Browser / API Client)
@@ -38,25 +49,29 @@ User (Browser / API Client)
  - Offline Fallback Engine
 ```
 
-### Technology Matrix
-- **Language**: Python 3.12+
-- **Backend Framework**: FastAPI
-- **Server**: Uvicorn (ASGI)
-- **AI / LLM SDK**: Google Generative AI SDK (`google-generativeai`)
-  - **Gemini 1.5 Pro**: Workout plan generation (`generate_workout_gemini`) and feedback-based refinement (`update_workout_plan`).
-  - **Gemini Flash (1.5 Flash)**: Nutrition and recovery tips (`generate_nutrition_tip_with_flash`).
-  - **Fallback / Mock Engine**: Automated graceful degradation if `GOOGLE_API_KEY` is absent or API quota/network is unavailable.
-- **Database**: SQLite3 via SQLAlchemy ORM.
-- **Frontend / Templating**: Jinja2 with HTML5, CSS3 (modern gym-themed dark styling, Flexbox layout, Google Fonts: Roboto).
-- **Validation**: Pydantic v2.
-- **Testing**: Pytest, HTTPX (`fastapi.testclient`), Playwright (E2E browser testing).
+| Layer | Choice |
+|---|---|
+| Language | Python 3.12+ |
+| Web framework | FastAPI |
+| Server | Uvicorn (ASGI) |
+| AI SDK | `google-generativeai` |
+| Database | SQLite through the SQLAlchemy ORM |
+| Templating | Jinja2 with HTML5 and CSS3 |
+| Validation | Pydantic v2 |
+| Testing | Pytest, HTTPX via `fastapi.testclient`, Playwright |
 
----
+Model assignment:
 
-## 3. Project Directory Structure
+- Gemini 1.5 Pro drives `generate_workout_gemini` (workout plans) and `update_workout_plan` (feedback
+  revisions).
+- Gemini Flash drives `generate_nutrition_tip_with_flash` (nutrition tips).
+- Each generator falls back to a deterministic local engine when `GOOGLE_API_KEY` is missing or the
+  API is unreachable.
+
+## 3. Directory structure
 
 ```
-FitBuddy/
+fitbuddy-ai/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI application entry point, mounts, lifespan
@@ -75,194 +90,242 @@ FitBuddy/
 │   ├── images/
 │   │   └── gym-bg.jpg           # Gym-themed hero/background image
 │   └── css/
-│       └── style.css            # Responsive dark fitness styling
+│       └── style.css            # Gym-photo layout, light theme
 ├── tests/
 │   ├── __init__.py
-│   ├── conftest.py              # Test fixtures (in-memory SQLite DB, mock AI)
+│   ├── conftest.py              # Test fixtures (isolated SQLite DB, stripped API key)
 │   ├── test_database.py         # Unit tests for CRUD and ORM models
 │   ├── test_ai_generators.py    # Unit tests for Gemini & fallback logic
 │   ├── test_web_routes.py       # Integration tests for HTML endpoints
-│   └── test_api_routes.py       # Integration tests for JSON API endpoints
+│   ├── test_api_routes.py       # Integration tests for JSON API endpoints
+│   └── test_e2e_browser.py      # Playwright journey against a live server
 ├── tasks/
 │   ├── plan.md                  # Implementation phase plan
-│   └── todo.md                  # Task-by-task execution checklist
+│   └── todo.md                  # Task-by-task execution checklist and verification log
 ├── .env.example                 # Template for GOOGLE_API_KEY & settings
 ├── requirements.txt             # Locked project dependencies
 ├── PLAN.md                      # This specification & architecture document
 └── FitBuddy – AI Fitness Plan Generator using Gemini Models.docx
 ```
 
----
+## 4. Data models and database design
 
-## 4. Data Models & Database Design
+### 4.1 ORM models (`app/database.py`)
 
-### 4.1 ORM Models (`app/database.py`)
+Table `users`
 
-#### Table: `users`
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | Integer | Primary Key | Explicit User ID supplied by user (or auto-assigned) |
-| `name` | String(100) | Not Null | User full name |
-| `age` | Integer | Not Null | User age in years |
-| `weight` | Float | Not Null | User weight in kilograms |
-| `goal` | String(100) | Not Null | User fitness goal (e.g. weight loss, muscle gain) |
-| `intensity` | String(50) | Not Null | Intensity level (Low, Medium, High) |
-| `schedule` | Integer | Default 7 | Duration of workout plan in days |
+| `id` | Integer | Primary key | Explicit user ID supplied by the user |
+| `name` | String(100) | Not null | User full name |
+| `age` | Integer | Not null | Age in years |
+| `weight` | Float | Not null | Weight in kilograms |
+| `goal` | String(100) | Not null | Fitness goal, e.g. weight loss or muscle gain |
+| `intensity` | String(50) | Not null | Low, Medium or High |
+| `schedule` | Integer | Default 7 | Plan length in days |
 
-#### Table: `workout_plans`
+Table `workout_plans`
+
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `id` | Integer | Primary Key, Auto-increment | Internal plan ID |
-| `user_id` | Integer | ForeignKey(`users.id`), Unique, Indexed | Reference to user |
-| `original_plan` | Text | Nullable | Initial Gemini 1.5 Pro generated plan |
-| `updated_plan` | Text | Nullable, Default None | Feedback-revised Gemini 1.5 Pro plan |
+| `id` | Integer | Primary key, auto-increment | Internal plan ID |
+| `user_id` | Integer | Foreign key to `users.id`, unique, indexed | Reference to user |
+| `original_plan` | Text | Nullable | Initial Gemini 1.5 Pro plan |
+| `updated_plan` | Text | Nullable, default none | Feedback-revised plan |
 
-### 4.2 Database Helper Functions
-- `save_user(user_id: int, name: str, age: int, weight: float, goal: str, intensity: str) -> User`: Upserts user details (creates if not exists, updates if exists).
-- `save_plan(user_id: int, plan: str) -> WorkoutPlan`: Stores or replaces the original plan for a user.
-- `update_plan(user_id: int, updated_text: str) -> WorkoutPlan`: Persists the feedback-revised plan.
-- `get_original_plan(user_id: int) -> Optional[str]`: Retrieves original plan text.
-- `get_user(user_id: int) -> Optional[User]`: Retrieves user by ID.
-- `get_all_users() -> List[User]`: Fetches all user records.
-- `get_all_plans() -> List[WorkoutPlan]`: Fetches all workout plans.
-- `delete_user(user_id: int) -> bool`: Cascades delete of user and associated plans for admin cleanups.
+### 4.2 Database helper functions
 
----
+- `save_user(user_id: int, name: str, age: int, weight: float, goal: str, intensity: str) -> User`:
+  upserts the user, creating or updating as needed.
+- `save_plan(user_id: int, plan: str) -> WorkoutPlan`: stores or replaces the original plan.
+- `update_plan(user_id: int, updated_text: str) -> WorkoutPlan`: persists a revision.
+- `get_original_plan(user_id: int) -> Optional[str]`: returns the original plan text.
+- `get_user(user_id: int) -> Optional[User]`: returns one user.
+- `get_all_users() -> List[User]`: returns every user.
+- `get_all_plans() -> List[WorkoutPlan]`: returns every plan.
+- `delete_user(user_id: int) -> bool`: removes a user and their plans, used by the admin delete.
 
-## 5. Pydantic Schemas (`app/schemas.py`)
+## 5. Pydantic schemas (`app/schemas.py`)
 
-- `UserInput`:
-  - `user_id: int`
-  - `username: str`
-  - `age: int` (gt=0, lt=130)
-  - `weight: float` (gt=0.0)
-  - `goal: str`
-  - `intensity: str` (e.g., 'Low', 'Medium', 'High')
-- `WorkoutRequest`:
-  - `goal: str`
-  - `intensity: str`
-- `FeedbackRequest`:
-  - `feedback: str`
-- `WorkoutResponse`:
-  - `model: str`
-  - `workout_plan: str`
-- `NutritionResponse`:
-  - `goal: str`
-  - `nutrition_tip: str`
-- `PlanGenerationResponse`:
-  - `message: str`
-  - `workout_plan: str`
+- `UserInput`: `user_id: int`, `username: str`, `age: int` (gt 0, lt 130), `weight: float` (gt 0.0),
+  `goal: str`, `intensity: str`
+- `WorkoutRequest`: `goal: str`, `intensity: str`
+- `FeedbackRequest`: `feedback: str`
+- `WorkoutResponse`: `model: str`, `workout_plan: str`
+- `NutritionResponse`: `goal: str`, `nutrition_tip: str`
+- `PlanGenerationResponse`: `message: str`, `workout_plan: str`
+- `UserResponse`: `id`, `name`, `age`, `weight`, `goal`, `intensity`, `original_plan`, `updated_plan`
 
----
+## 6. AI prompts and fallback behaviour
 
-## 6. AI Prompt Design & Fallback Engineering
+### 6.1 Gemini 1.5 Pro: 7-day workout generation (`app/gemini_generator.py`)
 
-### 6.1 Gemini 1.5 Pro: 7-Day Workout Generation (`app/gemini_generator.py`)
-- **System Prompt / Structure**:
-  ```text
-  You are a professional fitness trainer.
-  Create a personalized, structured 7-day workout plan for someone with the goal of **{goal}**, and prefers **{intensity} intensity** workouts.
-  Each day must include:
-  - A warm-up (5-10 mins)
-  - Main workout (targeted exercises, sets & reps)
-  - Cooldown or recovery tip
+```text
+You are a professional fitness trainer.
 
-  Format:
-  Day 1:
-  Warm-up: ...
-  Main Workout: ...
-  Cooldown: ...
-  (Repeat for Day 2-7)
-  ```
+Create a personalized, structured 7-day workout plan for someone with the goal of **{goal}**, and prefers **{intensity} intensity** workouts.
 
-### 6.2 Gemini Flash: Targeted Nutrition Tip (`app/gemini_flash_generator.py`)
-- **System Prompt / Structure**:
-  ```text
-  Give one clear, helpful nutrition or recovery tip for someone focused on '{goal}'.
-  The tip should be practical, friendly, and easy to understand.
-  ```
+Each day must include:
+- A warm-up (5-10 mins)
+- Main workout (targeted exercises, sets & reps)
+- Cooldown or recovery tip
 
-### 6.3 Gemini 1.5 Pro: Feedback-Driven Refinement (`app/updated_plan.py`)
-- **System Prompt / Structure**:
-  ```text
-  You are a professional fitness trainer assistant.
-  Here's the original 7-day workout plan:
-  {original_plan}
+Format:
+Day 1:
+Warm-up: ...
+Main Workout: ...
+Cooldown: ...
+(Repeat for Day 2-7)
+```
 
-  User Feedback:
-  "{user_feedback}"
+### 6.2 Gemini Flash: nutrition tip (`app/gemini_flash_generator.py`)
 
-  Based on the feedback, revise the relevant parts of the workout plan. Keep the format and rest of the plan unchanged if not needed.
-  ```
+```text
+Give one clear, helpful nutrition or recovery tip for someone focused on '{goal}'.
+The tip should be practical, friendly, and easy to understand.
+```
 
-### 6.4 Offline / Resilient Fallback Engine
-- When `GOOGLE_API_KEY` is not present, invalid, or hits quota limits, the application automatically engages a deterministic fallback generator tailored to the goal (`weight loss`, `muscle gain`, `general fitness`, `flexibility`) and intensity. This guarantees 100% uptime for local evaluation and automated testing.
+### 6.3 Gemini 1.5 Pro: feedback refinement (`app/updated_plan.py`)
 
----
+```text
+You are a professional fitness trainer assistant.
 
-## 7. Routes & Interfaces (`app/routes.py`)
+Here's the original 7-day workout plan:
+{original_plan}
 
-### 7.1 Web Interface Routes (Jinja2 HTML)
-1. `GET /`: Renders `index.html` with the workout generator form.
-2. `POST /generate-workout`:
-   - Accepts form data: `username`, `user_id`, `age`, `weight`, `goal`, `intensity`.
-   - Invokes `save_user(...)`.
-   - Calls `generate_workout_gemini(...)` and `generate_nutrition_tip_with_flash(...)`.
-   - Invokes `save_plan(...)`.
-   - Returns `result.html` populated with user details, workout plan (`<pre>`), and nutrition tip.
-3. `POST /submit-feedback`:
-   - Accepts form data: `user_id`, `feedback`.
-   - Retrieves original plan via `get_original_plan(user_id)`.
-   - Calls `update_workout_plan(original_plan, feedback)`.
-   - Updates record via `update_plan(user_id, updated_plan)`.
-   - Re-renders `result.html` with user info, updated plan, nutrition tip, and success message: *"Your plan has been updated based on your feedback!"*.
-4. `GET /view-all-users`:
-   - Queries users and plans.
-   - Renders `all_users.html` with a table: User ID, Name, Age, Weight, Goal, Intensity, Original Plan (`<pre>`), Updated Plan (`<pre>`), and Actions.
-5. `POST /delete-user/{user_id}`:
-   - Deletes specified user and plans, redirects back to `/view-all-users`.
+User Feedback:
+"{user_feedback}"
 
-### 7.2 REST API Endpoints (JSON)
-1. `POST /generate-workout/gemini` -> Accepts `WorkoutRequest`, returns `{"model": "gemini-pro", "workout_plan": str}`.
-2. `GET /nutrition-tip` -> Query param `?goal=...`, returns `{"goal": str, "nutrition_tip": str}`.
-3. `POST /generate-plan` -> Accepts `UserInput`, creates user and plan, returns `{"message": str, "workout_plan": str}`.
-4. `POST /update-plan/{user_id}` -> Accepts `FeedbackRequest`, updates plan, returns `{"updated_plan": str}`.
-5. `GET /api/users` -> Returns list of all user objects with plans.
+Based on the feedback, revise the relevant parts of the workout plan. Keep the format and rest of the plan unchanged if not needed.
+```
 
----
+### 6.4 Offline fallback engine
 
-## 8. Frontend UI Specification
+When `GOOGLE_API_KEY` is absent, invalid, or the call fails, each generator returns a deterministic
+local result keyed on goal (`weight loss`, `muscle gain`, `general fitness`, `flexibility`) and
+intensity. Every call is wrapped in a `try`/`except` that falls through to the local engine, so a
+retired model name or an exhausted quota still produces a response. This keeps local evaluation and
+the test suite working without a key.
 
-### 8.1 Visual Aesthetic & Design System
-- **Theme**: Premium dark fitness interface (`#0d1117` background, `#161b22` cards, `#21262d` borders).
-- **Accents**: Athletic Orange (`#f97316`), Electric Cyan (`#06b6d4`), Success Green (`#10b981`).
-- **Typography**: Google Fonts `'Roboto', sans-serif`, clear hierarchy, legible monospace `<pre>` container for formatted workout routines.
-- **Card Styling**: Rounded corners (`12px`), subtle box-shadows, responsive container widths (max-width `900px`).
-- **Hero/Background Image**: `static/images/gym-bg.jpg` with a dark overlay to maintain readability.
+## 7. Routes and interfaces (`app/routes.py`)
+
+### 7.1 Web interface routes (Jinja2 HTML)
+
+1. `GET /` renders `index.html` with the workout generator form.
+2. `POST /generate-workout` accepts `username`, `user_id`, `age`, `weight`, `goal` and `intensity`
+   as form data. It calls `save_user(...)`, then `generate_workout_gemini(...)` and
+   `generate_nutrition_tip_with_flash(...)`, then `save_plan(...)`, and returns `result.html`
+   carrying the user details, the plan in a `<pre>` block and the nutrition tip.
+3. `POST /submit-feedback` accepts `user_id` and `feedback`. It reads the original plan with
+   `get_original_plan(user_id)`, calls `update_workout_plan(original_plan, feedback)`, saves with
+   `update_plan(user_id, updated_plan)`, and re-renders `result.html` with the user info, the revised
+   plan, the nutrition tip and the message "Your plan has been updated based on your feedback!".
+4. `GET /view-all-users` reads users and plans and renders `all_users.html` with columns for user
+   ID, name, age, weight, goal and intensity, followed by the original and updated plans in `<pre>`
+   blocks and a delete action.
+5. `POST /delete-user/{user_id}` removes the user and their plans, then redirects to
+   `/view-all-users`.
+
+### 7.2 REST API endpoints (JSON)
+
+1. `POST /generate-workout/gemini` takes a `WorkoutRequest` and returns
+   `{"model": "gemini-pro", "workout_plan": str}`.
+2. `GET /nutrition-tip` takes `?goal=...` and returns `{"goal": str, "nutrition_tip": str}`.
+3. `POST /generate-plan` takes a `UserInput`, creates the user and plan, and returns
+   `{"message": str, "workout_plan": str}`.
+4. `POST /update-plan/{user_id}` takes a `FeedbackRequest`, updates the plan and returns
+   `{"updated_plan": str}`. When no plan exists it returns HTTP 200 with
+   `{"error": "Original plan not found for this user."}`. The DOCX's own code screenshot shows a bare
+   `return` there, which makes 200 the specified behaviour; do not "fix" it to 404.
+5. `GET /api/users` returns every user object with its plans.
+
+## 8. Frontend specification
+
+### 8.1 Design system
+
+The values below were sampled from pixels in the DOCX screenshots (`word/media/image*.png`). Re-measure
+rather than adjust by eye if the design is revisited.
+
+| Property | Value |
+|---|---|
+| Background photo | `static/images/gym-bg.jpg` at full strength, with no white gradient overlay |
+| Card | `rgba(255, 255, 255, 0.95)`, border `#e6e6e6`, radius `24px`, shadow `0 10px 30px rgba(15,32,58,.12)` |
+| Primary button | `#3b82f6` |
+| Table header | `#1e88e5` |
+| Success text | `#0a8a3e` |
+| Danger | `#dc2626` |
+| Headings | `#1f2937` |
+| Form labels | `#111827` |
+| Body text | `#33404f` |
+| Placeholder | `#757575` |
+| Form control and table cell borders | `#cccccc` |
+| Plan `<pre>` panel | `#f3f4f6` |
+| Admin page background | `#f0f4f8` |
+| Container widths | `min(860px, 100%)` home, `min(1100px, 100%)` result, `min(1500px, 100%)` admin table |
+
+Two of these came out of measurement rather than reading the file:
+
+- **No overlay on the photo.** Compositing `gym-bg.jpg` against the reference screenshots (both use
+  `background-size: cover; background-position: center`, so the same raw pixel lands in the same place)
+  and solving `out = raw·(1-a) + 255·a` gives a mean overlay alpha of about 0.00. A white wash
+  desaturates the page away from the spec.
+- **Card alpha and geometry.** The reference home card spans x 538 to 1363 at a 1918 px viewport, so it
+  is 825 px wide. The implemented value is 836 px. The result page column is wider than the home
+  column because plans need the room, which is why the two container widths differ.
+
+Typography is Roboto from Google Fonts. The feedback `<textarea>` keeps the monospace face the
+reference shows, and formatted plans render in `'Roboto Mono'` on the `#f3f4f6` panel.
+
+The admin dashboard is a flat `#f0f4f8` page with the table sitting directly on it. The reference has
+no photograph and no card wrapper on that page; a colour histogram of `image7.png` shows 1,123
+distinct colours with no photographic content at all.
 
 ### 8.2 Pages
-- `index.html`: Clean, centered card with 6 input fields (Name, User ID, Age, Weight, Goal dropdown/input, Intensity dropdown), Submit button.
-- `result.html`:
-  - User Summary Card (Name, ID, Age, Weight, Goal, Intensity).
-  - 7-Day Workout Plan card with `<pre>` formatting.
-  - Nutrition Tip Card with accent highlighting.
-  - Feedback Form card (User ID pre-filled or requested, textarea for feedback, Submit Feedback button).
-  - Confirmation alert banner when redirected after feedback.
-  - Navigation links: "Generate New Plan" & "Admin: View All Users".
-- `all_users.html`:
-  - Admin Header with count of registered users.
-  - Responsive table showing all 8 columns: ID, Name, Age, Weight, Goal, Intensity, Original Plan, Updated Plan.
-  - Delete action button per row.
-  - Navigation link back to Home (`/`).
 
----
+`index.html`
 
-## 9. Verification & Quality Gates
+- Six inputs: Name, User ID, Age, Weight (kg), Fitness Goal, Workout Intensity.
+- Only the Fitness Goal field has a placeholder. The other four render empty.
+- Intensity defaults to `Low`.
+- The submit button is full width and reads "Generate Plan".
 
-1. **Database Gate**: Validate SQLite schema creation, foreign key constraints, and CRUD operations via Pytest.
-2. **AI Engine Gate**: Verify prompts, responses, error handling, and fallback behavior with and without API keys.
-3. **API & Route Gate**: Integration tests verifying status 200, proper HTML rendering, form submission redirects, and REST API contracts.
-4. **End-to-End Browser Gate**: DevTools / Playwright test confirming full user journey:
-   - Load homepage -> fill form -> generate plan -> check result page.
-   - Submit feedback -> verify updated plan card & confirmation badge.
-   - Load `/view-all-users` -> verify table contains new record with both original and updated plans.
+`result.html`
+
+- An `<h1>` of "🏋️ Your Personalized Workout Plan". The emoji is the weightlifter, which is what the
+  reference shows; the home page uses the flexed biceps instead.
+- A user summary card listing name, user ID, age, weight, goal and intensity as bold-label rows.
+- A workout plan card with the plan in a `<pre>` block.
+- A nutrition tip card of plain left-aligned prose, with no panel behind it.
+- A feedback card with an empty User ID field showing its placeholder, a textarea, and a Submit
+  Feedback button. The field starts empty because the reference shows it that way and the placeholder
+  text tells the user to type their ID.
+- A confirmation line in plain green text after a revision, with no panel behind it.
+- Links to "Generate New Plan" and "View All Users".
+
+`all_users.html`
+
+- A centred `<h1>` of "📋 FitBuddy - All Users & Workout Plans".
+- A table with nine columns: User ID, Name, Age, Weight (kg), Goal, Intensity, Original Plan, Updated
+  Plan, and a delete action. The first six are centre-aligned; the two plan columns are left-aligned.
+- Plans render unclipped, without a scroll box.
+- A link back to the home page.
+
+Four elements in the app do not appear in any DOCX screenshot and are deliberate additions: the
+header nav bar, the footer, the "+ Register New User" button, and the subtitle under the home page
+heading. Without the nav, the admin dashboard and `/docs` would only be reachable by typing a URL,
+which undercuts scenario 4.
+
+## 9. Verification and quality gates
+
+1. **Database gate.** Pytest covers schema creation, foreign keys and the CRUD helpers.
+2. **AI engine gate.** Tests exercise the prompts, the responses and the fallback path, both with and
+   without an API key.
+3. **API and route gate.** Integration tests check status codes, HTML rendering, form submission and
+   the JSON contracts.
+4. **End-to-end browser gate.** A Playwright test confirms the full journey: load the home page, fill
+   the form, generate a plan, check the result, submit feedback and verify the revised plan and
+   confirmation, then open `/view-all-users` and confirm the record appears with both plans.
+
+`tests/conftest.py` forces an isolated `DATABASE_URL` before importing any `app.*` module and strips
+`GOOGLE_API_KEY`. Without the first, pytest teardown ran `drop_all` against the development database
+and broke a running server; without the second, the suite would depend on a real key.
