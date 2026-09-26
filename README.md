@@ -1,34 +1,34 @@
 # FitBuddy – AI Fitness Plan Generator using Gemini Models
 
-A FastAPI web app that builds 7-day workout plans and nutrition or recovery tips from a user's
-fitness goal. Plans come from Google's Gemini models: Gemini 1.5 Pro for workout plans and
-revisions, Gemini Flash for nutrition tips.
+FitBuddy is a FastAPI web app that turns a user's profile into a 7-day workout plan and a matching
+nutrition tip. Workout plans and feedback revisions come from Gemini Pro, nutrition tips from Gemini
+Flash. When a user submits feedback on a stored plan, the revision is saved next to the original, and
+an admin dashboard lists every user with both versions.
 
 The stack is FastAPI, SQLAlchemy with SQLite, and Jinja2 templates.
 
-The project directory is named `fitbuddy-ai`. "FitBuddy" remains the product name used in the UI,
-the API title, and the documentation headings.
+The project directory is named `fitbuddy-ai`. "FitBuddy" is the product name used in the UI, the API
+title, and documentation headings.
 
-## Error handling (no offline fallback)
+## Error handling
 
-The design DOCX shows plain, unguarded Gemini calls and specifies no fallback, so there is none:
-when a Gemini call cannot be made or fails, every generator raises `GeminiError` and the failure is
-surfaced with its exact reason.
+The design DOCX shows plain Gemini calls and specifies no fallback, so there is none. When a Gemini
+call fails, the generator raises `GeminiError` and the app reports the exact upstream reason.
 
-- HTML routes render a styled error page (`templates/error.html`) showing the reason verbatim —
-  quota exhaustion, invalid key, unknown model name, network failure, or an empty/blocked response.
+- HTML routes render a styled error page with the reason verbatim: quota exhaustion with metric and
+  limit, an invalid key, an unknown model name, a network failure, or an empty or blocked response.
 - JSON API endpoints answer `502 Bad Gateway` with the reason in the `detail` field.
-- A failed plan generation persists nothing, so the database never holds a half-registered user;
-  a failed plan revision leaves the stored original plan untouched.
-- If the workout plan succeeds but the nutrition tip fails, the result page shows the plan with an
-  inline error box explaining exactly why the tip is missing.
+- A failed plan generation saves nothing, so the database never holds a half-registered user. A
+  failed revision leaves the stored original plan unchanged.
+- If the plan succeeds but the nutrition tip fails, the result page still shows the plan with an
+  inline error box explaining why the tip is missing.
 
 ## Features
 
 | Scenario | What it does |
 |---|---|
-| 1. Plan generation | You enter name, user ID, age, weight, fitness goal and intensity. Gemini 1.5 Pro returns a 7-day plan where each day has a warm-up, a main workout and a cooldown. Gemini Flash returns a nutrition tip matched to the goal. |
-| 2. Feedback-driven refinement | You submit feedback such as "add more cardio" or "include yoga on rest days". Gemini 1.5 Pro revises the plan, and the revision is stored separately from the original. |
+| 1. Plan generation | You enter name, user ID, age, weight, fitness goal and intensity. Gemini Pro returns a 7-day plan where each day has a warm-up, a main workout and a cooldown. Gemini Flash returns a nutrition tip matched to the goal. |
+| 2. Feedback-driven refinement | You submit feedback such as "add more cardio" or "include yoga on rest days". Gemini Pro revises the plan, and the revision is stored separately from the original. |
 | 3. Nutrition and recovery tips | A standalone endpoint backed by Gemini Flash that returns one dietary or recovery suggestion. |
 | 4. Admin dashboard | `/view-all-users` lists every registered user with their details, the original plan, any updated plan, and a delete button per row. |
 
@@ -42,14 +42,14 @@ fitbuddy-ai/
 │   ├── database.py               # SQLAlchemy models & CRUD helpers
 │   ├── schemas.py                # Pydantic validation models
 │   ├── gemini_error.py           # GeminiError + exact-reason extraction
-│   ├── gemini_generator.py       # Gemini 1.5 Pro – 7-day workout generation
+│   ├── gemini_generator.py       # Gemini Pro – 7-day workout generation
 │   ├── gemini_flash_generator.py # Gemini Flash – nutrition tips
-│   └── updated_plan.py           # Gemini 1.5 Pro – feedback-based plan revision
+│   └── updated_plan.py           # Gemini Pro – feedback-based plan revision
 ├── templates/
 │   ├── index.html                # User input form
 │   ├── result.html               # Plan, nutrition tip & feedback form
 │   ├── all_users.html            # Admin dashboard
-│   └── error.html                # Styled error page with the exact failure reason
+│   └── error.html                # Error page carrying the exact failure reason
 ├── static/
 │   ├── css/style.css             # Gym-photo layout, light theme
 │   └── images/gym-bg.jpg         # Gym photo used as the page backdrop
@@ -88,20 +88,19 @@ Then edit `.env` and set your Gemini key:
 GOOGLE_API_KEY=your_gemini_api_key_here
 ```
 
-The app will not serve AI content without a key: generation attempts return an error page (HTML) or
+The app will not serve AI content without a key. Generation attempts return an error page (HTML) or
 a `502` with the reason (API) saying the key is missing.
 
 ### Model names
 
 The DOCX specifies `gemini-1.5-pro` and `gemini-1.5-flash`. Google has retired both, and they now
-return 404. With no fallback, a retired model name surfaces as a styled error page (or API `502`)
-saying the model was not found. `.env.example` uses current names that keep the DOCX's split of
-Pro for workout plans and Flash for nutrition tips.
+return 404, which surfaces as the same error page or API `502` as any other failure. `.env.example`
+uses current names that keep the DOCX's split of Pro for workout plans and Flash for nutrition tips.
 
-Free-tier keys have no Pro quota, so `gemini-3.1-pro-preview` answers with 429 and workout plan
-generation fails with the quota reason until billing is enabled on the project. The Flash free tier
-allows 20 requests per day; once exhausted, nutrition tips fail the same way until the daily reset.
-The exact reason — status code, quota metric, retry hint — is shown verbatim on the error page.
+Free-tier keys have no Pro quota, so `gemini-3.1-pro-preview` answers with 429 and plan generation
+fails until billing is enabled on the project. The Flash free tier allows 20 requests per day; once
+those are used up, nutrition tips fail the same way until the daily reset. The error page shows the
+status code, quota metric and retry hint for each case.
 
 ### 4. Run the server
 
@@ -121,10 +120,12 @@ PYTHONPATH=. python -m pytest tests/ -v
 ```
 
 The suite covers database CRUD, Pydantic validation, the AI generators and their error paths, the
-HTML form routes, and the JSON API contracts.
+HTML form routes, and the JSON API contracts. Generator success paths are monkeypatched, so the suite
+never calls Gemini or consumes quota.
 
-`tests/test_e2e_browser.py` drives a real browser through the whole journey with Playwright. It skips
-itself unless a server is already listening on port 8010:
+`tests/test_e2e_browser.py` drives a real browser through the whole journey with Playwright. It
+skips itself unless a server is already listening on port 8010, and it skips with the AI's exact
+error reason when live generation is unavailable (for example, an exhausted quota):
 
 ```bash
 python -m uvicorn app.main:app --port 8010 &
@@ -186,13 +187,13 @@ curl -X POST http://127.0.0.1:8000/generate-workout/gemini \
 |---|---|---|
 | `id` | Integer | Auto-increment primary key |
 | `user_id` | Integer | FK to `users.id`, unique, cascade delete |
-| `original_plan` | Text | Initial Gemini 1.5 Pro plan |
+| `original_plan` | Text | Initial Gemini Pro plan |
 | `updated_plan` | Text | Feedback-revised plan, nullable |
 
 ## Tech stack
 
 - Backend: FastAPI, Uvicorn
-- AI: `google-generativeai`. Gemini 1.5 Pro for plans and updates, Gemini Flash for tips
+- AI: `google-generativeai`. Gemini Pro for plans and updates, Gemini Flash for tips
 - Database: SQLite through the SQLAlchemy ORM
 - Frontend: Jinja2, HTML5, CSS3. Roboto, with the gym photo as the page backdrop
 - Validation: Pydantic v2
