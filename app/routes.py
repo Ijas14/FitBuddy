@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.gemini_generator import GeminiError
+from app.gemini_generator import GeminiError, explain_failure
 from app.schemas import (
     UserInput,
     WorkoutRequest,
@@ -27,6 +27,8 @@ from app.database import (
 from app.gemini_generator import generate_workout_gemini
 from app.gemini_flash_generator import generate_nutrition_tip_with_flash
 from app.updated_plan import update_workout_plan
+from app.gemini_generator import MODEL_NAME
+from app.gemini_flash_generator import MODEL_NAME as FLASH_MODEL_NAME
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
@@ -49,12 +51,12 @@ def _user_row(user, plan) -> dict:
     }
 
 
-def _error_page(request: Request, title: str, reason: str, status_code: int = status.HTTP_502_BAD_GATEWAY) -> HTMLResponse:
-    """Render the styled error page carrying the exact failure reason."""
+def _error_page(request: Request, title: str, reason: str, model: str = "", status_code: int = status.HTTP_502_BAD_GATEWAY) -> HTMLResponse:
+    """Render the error page: a plain-English explanation over the raw reason."""
     return templates.TemplateResponse(
         request=request,
         name="result.html",
-        context={"error_title": title, "error_reason": reason},
+        context={"error_title": title, "failure": explain_failure(reason, model)},
         status_code=status_code,
     )
 
@@ -87,14 +89,14 @@ def generate_workout_form(
     try:
         workout_plan = generate_workout_gemini({"goal": goal, "intensity": intensity})
     except GeminiError as exc:
-        return _error_page(request, "Workout plan could not be generated", exc.reason)
+        return _error_page(request, "Workout plan could not be generated", exc.reason, MODEL_NAME)
 
     try:
         nutrition_tip = generate_nutrition_tip_with_flash(goal)
         tip_error = None
     except GeminiError as exc:
         nutrition_tip = None
-        tip_error = exc.reason
+        tip_error = explain_failure(exc.reason, FLASH_MODEL_NAME)
 
     save_user(
         user_id=user_id,
@@ -154,8 +156,9 @@ def submit_feedback_form(
     except GeminiError as exc:
         return _error_page(
             request,
-            "Plan could not be revised",
-            f"{exc.reason} The original plan is unchanged.",
+            "Plan could not be revised. The original plan is unchanged.",
+            exc.reason,
+            MODEL_NAME,
         )
 
     update_plan(user_id, updated_plan_text)
@@ -165,7 +168,7 @@ def submit_feedback_form(
         tip_error = None
     except GeminiError as exc:
         nutrition_tip = None
-        tip_error = exc.reason
+        tip_error = explain_failure(exc.reason, FLASH_MODEL_NAME)
 
     return templates.TemplateResponse(
         request=request,

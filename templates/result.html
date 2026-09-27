@@ -238,29 +238,37 @@ textarea:focus {
   font-weight: 500;
 }
 
-/* AI-failure notices: not in the spec DOCX (which has no failure path), added
-   alongside the fallback removal so the exact error reason is visible. */
-.alert-error {
-  background: #fef2f2;
-  border: 1px solid var(--accent-red);
-  border-radius: 12px;
-  color: #7f1d1d;
-  padding: 1rem 1.25rem;
-  margin: 0.75rem 0 1.25rem;
-}
+/* AI-failure notice: a parsed explanation with the raw reason collapsed.
+   Not in the spec DOCX, which has no failure path. */
+.err-card { max-width: 860px; }
+.err-head { display: flex; gap: 18px; align-items: center; margin-bottom: 1.1rem; }
+.err-icon { font-size: 2.4rem; line-height: 1; }
+.err-subject { margin: 0 0 2px; font-size: 0.8rem; letter-spacing: 0.12em;
+               text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
+.err-headline { margin: 0; font-size: 1.9rem; color: #7f1d1d; }
+.err-detail { margin: 0 0 1.25rem; font-size: 1.05rem; line-height: 1.6; color: #374151; }
+.err-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+             gap: 10px; margin: 0 0 1.4rem; }
+.err-fact { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; }
+.err-fact dt { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+               color: var(--text-muted); margin-bottom: 3px; }
+.err-fact dd { margin: 0; font-family: 'Roboto Mono', monospace; font-size: 0.88rem;
+               color: #0f172a; word-break: break-word; }
+.err-actions { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px;
+               padding: 14px 18px 16px 18px; margin-bottom: 1.2rem; }
+.err-actions-title { margin: 0 0 6px; font-size: 0.78rem; letter-spacing: 0.1em;
+                     text-transform: uppercase; color: #1d4ed8; font-weight: 700; }
+.err-actions ol { margin: 0; padding-left: 1.15rem; color: #1e3a8a; font-size: 0.95rem; line-height: 1.65; }
+.err-raw { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; margin-bottom: 1.3rem;
+           background: #f8fafc; }
+.err-raw summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.err-raw pre { font-family: 'Roboto Mono', monospace; font-size: 0.78rem; line-height: 1.5;
+               white-space: pre-wrap; word-break: break-word; color: #475569; margin: 10px 0 2px; }
+.err-inline { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px;
+              padding: 16px 18px; margin: 0.75rem 0 1.25rem; }
+.err-inline-head { margin: 0 0 6px; font-weight: 700; color: #92400e; }
+.err-inline .err-raw { background: #ffffff; margin-bottom: 0; }
 
-.alert-error .error-reason {
-  font-family: 'Roboto Mono', monospace;
-  font-size: 0.9rem;
-  white-space: pre-wrap;
-  word-break: break-word;
-  margin: 0.5rem 0 0;
-}
-
-.error-help {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
 
 /* User summary — bold label followed by the value, as in the spec. */
 .info-grid {
@@ -478,21 +486,38 @@ footer {
   </header>
 
   <main class="container container-wide">
-    {% if error_reason %}
-    <div class="card">
-      <h1>⚠️ {{ error_title }}</h1>
-      <div class="alert-error">
-        <strong>Exact reason:</strong>
-        <pre class="error-reason">{{ error_reason }}</pre>
+    {% if failure %}
+    <div class="card err-card">
+      <div class="err-head">
+        <span class="err-icon">{% if failure.kind == "quota" %}⏳{% elif failure.kind == "model" %}🧭{% elif failure.kind == "auth" %}🔑{% elif failure.kind == "timeout" %}⏱️{% elif failure.kind == "empty" %}🚫{% else %}⚠️{% endif %}</span>
+        <div>
+          <p class="err-subject">{{ error_title }}</p>
+          <h1 class="err-headline">{{ failure.headline }}</h1>
+        </div>
       </div>
-      <p class="error-help">
-        Fix the cause above and try again. If the reason mentions quota or billing,
-        the Gemini API key's plan is limiting requests; if it mentions the model name,
-        adjust <code>GEMINI_PRO_MODEL</code> / <code>GEMINI_FLASH_MODEL</code> in <code>.env</code>
-        and restart the server.
-      </p>
+
+      <p class="err-detail">{{ failure.detail }}</p>
+
+      {% if failure.facts %}
+      <dl class="err-facts">
+        {% for label, value in failure.facts %}
+        <div class="err-fact"><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+        {% endfor %}
+      </dl>
+      {% endif %}
+
+      <div class="err-actions">
+        <p class="err-actions-title">What to do</p>
+        <ol>{% for action in failure.actions %}<li>{{ action }}</li>{% endfor %}</ol>
+      </div>
+
+      <details class="err-raw">
+        <summary>Technical detail from Google</summary>
+        <pre>{{ failure.raw }}</pre>
+      </details>
+
       <div class="action-group">
-        <a href="/" class="btn btn-secondary">Back to Home</a>
+        <a href="/" class="btn">Back to Home</a>
         <a href="/view-all-users" class="btn btn-secondary">Admin Dashboard</a>
       </div>
     </div>
@@ -549,9 +574,13 @@ footer {
         {{ nutrition_tip }}
       </div>
       {% elif tip_error %}
-      <div class="alert-error">
-        <strong>Nutrition tip could not be generated. Exact reason:</strong>
-        <pre class="error-reason">{{ tip_error }}</pre>
+      <div class="err-inline">
+        <p class="err-inline-head">💡 {{ tip_error.headline }}</p>
+        <p class="err-detail">{{ tip_error.detail }}</p>
+        <details class="err-raw">
+          <summary>Technical detail from Google</summary>
+          <pre>{{ tip_error.raw }}</pre>
+        </details>
       </div>
       {% endif %}
     </div>
