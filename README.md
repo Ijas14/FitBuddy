@@ -11,16 +11,38 @@ FitBuddy is the product name used in the UI, the API title, and the documentatio
 
 ## Error handling
 
-The design DOCX shows plain Gemini calls and specifies no fallback, so there is none. When a Gemini
-call fails, the generator raises `GeminiError` and the app reports the exact upstream reason.
+The design DOCX shows plain Gemini calls and specifies no fallback, so there is none. A failed call
+raises `GeminiError`, and the app works out what actually went wrong before it says so.
 
-- HTML routes render a styled error page with the reason verbatim: quota exhaustion with metric and
-  limit, an invalid key, an unknown model name, a network failure, or an empty or blocked response.
-- JSON API endpoints answer `502 Bad Gateway` with the reason in the `detail` field.
+The HTML routes render an error page built from a parsed view of the failure: a headline, a
+sentence of plain English, a grid of the facts Google's response carried (status, model, quota
+window and limit, quota metrics, retry delay), and a short list of things to try. The untouched
+upstream text stays one click away under "Technical detail from Google", so a developer can still
+read the original while everyone else reads the summary.
+
+Each failure gets wording of its own:
+
+| Kind | What the page says |
+|---|---|
+| `key` | no API key configured, so nothing was ever sent |
+| `quota` | the allowance is used up, with the window and limit |
+| `not_enabled` | the Generative Language API is off for the project |
+| `model` | the model id is retired, unknown, or closed to new users |
+| `auth` | the key was rejected |
+| `request` | Google refused the request itself |
+| `network` | the call never reached Google |
+| `timeout`, `service` | the call ran past its deadline, or Google returned 5xx |
+| `empty` | the call succeeded but produced no text, usually a safety block |
+| `app` | the app's own problem: unknown user ID, no stored plan |
+
+The last row matters. A mistyped user ID has nothing to do with Gemini, and the page says exactly
+that.
+
+- JSON API endpoints answer `502 Bad Gateway` with the full raw reason in `detail`.
 - A failed plan generation saves nothing, so the database never holds a half-registered user. A
   failed revision leaves the stored original plan unchanged.
-- If the plan succeeds but the nutrition tip fails, the result page still shows the plan with an
-  inline error box explaining why the tip is missing.
+- If the plan succeeds and the nutrition tip fails, the result page keeps the plan and shows a
+  compact version of the same error box in the tip card.
 
 ## Features
 
