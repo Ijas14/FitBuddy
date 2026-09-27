@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.gemini_generator import GeminiError, explain_failure
+from app.gemini_generator import GeminiError, app_failure, explain_failure
 from app.schemas import (
     UserInput,
     WorkoutRequest,
@@ -51,12 +51,17 @@ def _user_row(user, plan) -> dict:
     }
 
 
-def _error_page(request: Request, title: str, reason: str, model: str = "", status_code: int = status.HTTP_502_BAD_GATEWAY) -> HTMLResponse:
-    """Render the error page: a plain-English explanation over the raw reason."""
+def _error_page(request: Request, title: str, reason, model: str = "", status_code: int = status.HTTP_502_BAD_GATEWAY) -> HTMLResponse:
+    """Render the error page: a plain-English explanation over the raw reason.
+
+    ``reason`` is either a Gemini reason string to parse, or an
+    :func:`app_failure` dict for problems the app found on its own.
+    """
+    failure = reason if isinstance(reason, dict) else explain_failure(reason, model)
     return templates.TemplateResponse(
         request=request,
         name="result.html",
-        context={"error_title": title, "failure": explain_failure(reason, model)},
+        context={"error_title": title, "failure": failure},
         status_code=status_code,
     )
 
@@ -137,8 +142,13 @@ def submit_feedback_form(
     if not user:
         return _error_page(
             request,
-            "User not found",
-            f"No user with ID {user_id} exists. Check the ID on the admin dashboard.",
+            "Feedback could not be applied",
+            app_failure(
+                "No user with that ID",
+                f"User {user_id} is not in the database, so there is no plan to revise.",
+                ["Check the ID on the admin dashboard.",
+                 "Generate a plan first if this is a new user."],
+            ),
             status_code=status.HTTP_404_NOT_FOUND,
         )
 
@@ -146,8 +156,12 @@ def submit_feedback_form(
     if not original_plan:
         return _error_page(
             request,
-            "Original plan not found",
-            f"User {user_id} exists but has no stored plan to revise. Generate a plan first.",
+            "Feedback could not be applied",
+            app_failure(
+                "That user has no stored plan",
+                f"User {user_id} exists, but no workout plan was saved for them.",
+                ["Generate a plan for this user first, then send the feedback again."],
+            ),
             status_code=status.HTTP_404_NOT_FOUND,
         )
 

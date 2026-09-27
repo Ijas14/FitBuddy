@@ -489,7 +489,7 @@ footer {
     {% if failure %}
     <div class="card err-card">
       <div class="err-head">
-        <span class="err-icon">{% if failure.kind == "quota" %}⏳{% elif failure.kind == "model" %}🧭{% elif failure.kind == "auth" %}🔑{% elif failure.kind == "timeout" %}⏱️{% elif failure.kind == "empty" %}🚫{% else %}⚠️{% endif %}</span>
+        <span class="err-icon">{% if failure.kind == "quota" %}⏳{% elif failure.kind == "model" %}🧭{% elif failure.kind == "auth" or failure.kind == "key" %}🔑{% elif failure.kind == "not_enabled" %}🛠️{% elif failure.kind == "network" %}📡{% elif failure.kind == "timeout" %}⏱️{% elif failure.kind == "empty" %}🚫{% elif failure.kind == "app" %}🧾{% else %}⚠️{% endif %}</span>
         <div>
           <p class="err-subject">{{ error_title }}</p>
           <h1 class="err-headline">{{ failure.headline }}</h1>

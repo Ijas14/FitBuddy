@@ -77,6 +77,23 @@ def _quota_window(quota_id: str) -> str:
     return ", ".join(parts)
 
 
+def app_failure(headline: str, detail: str, actions: list[str] | None = None) -> dict:
+    """A failure from the app itself (bad user ID, no stored plan), not from Gemini.
+
+    Shaped like :func:`explain_failure` so one template renders both, but the copy
+    says what actually went wrong instead of blaming the model.
+    """
+    return {
+        "kind": "app",
+        "status": None,
+        "headline": headline,
+        "detail": detail,
+        "actions": actions or ["Check the details above, then try again."],
+        "facts": [],
+        "raw": "",
+    }
+
+
 def explain_failure(reason: str, model: str = "") -> dict:
     """Parse a failure reason into what a person needs to see and act on.
 
@@ -105,7 +122,12 @@ def explain_failure(reason: str, model: str = "") -> dict:
     window = _quota_window(quota_ids[0]) if quota_ids else ""
     lowered = raw.lower()
 
-    if "quota" in lowered or status == 429:
+    if "api_key is not set" in lowered or "never initialized" in lowered or "not configured" in lowered:
+        kind = "key"
+        headline = "No Gemini API key configured"
+        detail = "The app started without a usable key, so no request was ever sent to Google."
+        actions = ["Add GOOGLE_API_KEY to the .env file, then restart the server."]
+    elif "quota" in lowered or status == 429:
         kind = "quota"
         headline = "Gemini quota exhausted"
         if limit_text == "0" or (window and "free tier" in window):
@@ -117,6 +139,14 @@ def explain_failure(reason: str, model: str = "") -> dict:
             "Enable billing on the project in Google AI Studio to lift the quota limits.",
             "Or point GEMINI_PRO_MODEL / GEMINI_FLASH_MODEL at a model that still has free quota.",
         ]
+    elif "has not been used" in lowered or "servicedisabled" in lowered or "is not enabled" in lowered:
+        kind = "not_enabled"
+        headline = "The Gemini API is not enabled for this project"
+        detail = "Google rejected the call because the Generative Language API is switched off for the project behind this key."
+        actions = [
+            "Enable the Generative Language API for that project in the Google Cloud console.",
+            "Confirm the key belongs to the same project you enabled.",
+        ]
     elif status == 404 or "not found" in lowered or "no longer available" in lowered:
         kind = "model"
         headline = "Gemini does not recognise that model"
@@ -125,11 +155,24 @@ def explain_failure(reason: str, model: str = "") -> dict:
             "Check GEMINI_PRO_MODEL and GEMINI_FLASH_MODEL in .env against a current model id.",
             "Restart the server after editing .env.",
         ]
-    elif status in (401, 403) or "api key" in lowered and "invalid" in lowered:
+    elif status in (400, 401, 403) and ("api key" in lowered or "api_key" in lowered):
         kind = "auth"
         headline = "Gemini rejected the API key"
         detail = "The key is missing, malformed, or not allowed to use this model."
         actions = ["Put a valid GOOGLE_API_KEY in .env and restart the server."]
+    elif status == 400:
+        kind = "request"
+        headline = "Gemini rejected the request"
+        detail = "Google accepted the call but refused the request itself, usually a malformed key or an unusable model id."
+        actions = [
+            "Check that GOOGLE_API_KEY is a Gemini key, and that the model name in .env is current.",
+            "Restart the server after editing .env.",
+        ]
+    elif any(token in lowered for token in ("could not resolve", "connection", "network", "ssl", "getaddrinfo", "unreachable")):
+        kind = "network"
+        headline = "The request never reached Gemini"
+        detail = "The call failed before Google answered, so the model was never asked."
+        actions = ["Check the network or proxy, then try again."]
     elif "timed out" in lowered or "deadline" in lowered:
         kind = "timeout"
         headline = "Gemini did not answer in time"
