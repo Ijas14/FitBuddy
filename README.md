@@ -130,10 +130,16 @@ each case.
 python -m uvicorn app.main:app --reload
 ```
 
-Then open:
+Uvicorn prints the address it bound, `http://127.0.0.1:8000` by default. Open that in a browser for
+the app, and the same address with `/docs` for the interactive API reference.
 
-- Application: <http://127.0.0.1:8000>
-- Interactive API docs: <http://127.0.0.1:8000/docs>
+The port is uvicorn's choice, not the app's. Nothing in the code refers to a host or a port: pages
+link to each other by path, and the database file is relative to the directory you start from. If
+8000 is taken, pick another and use whatever address uvicorn prints:
+
+```bash
+python -m uvicorn app.main:app --reload --port 8010
+```
 
 ## API reference
 
