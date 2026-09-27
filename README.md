@@ -96,33 +96,33 @@ pip install -r requirements.txt
 
 ### 3. Configure environment variables
 
-There is no `.env.example` in the repository, so create the file yourself:
+Copy the example file and put your key in it:
 
 ```bash
-touch .env
+cp .env.example .env
 ```
 
-```
-GOOGLE_API_KEY=your_gemini_api_key_here
-GEMINI_PRO_MODEL=gemini-3.1-pro-preview
-GEMINI_FLASH_MODEL=gemini-3.5-flash
-DATABASE_URL=sqlite:///./fitbuddy.db
-```
+| Variable | Purpose | Default in `.env.example` |
+|---|---|---|
+| `GOOGLE_API_KEY` | the Gemini key every generation call needs | placeholder, replace it |
+| `GEMINI_PRO_MODEL` | model used for workout plans and feedback revisions | `gemini-3.8-flash` |
+| `GEMINI_FLASH_MODEL` | model used for nutrition tips | `gemini-3.8-flash` |
+| `DATABASE_URL` | SQLite file, created on first run | `sqlite:///./fitbuddy.db` |
 
-The app will not serve AI content without a key. Generation attempts return an error page (HTML) or
-a `502` with the reason (API) saying the key is missing.
+Without a key the app still starts, and every generation returns an error page saying the key is
+missing, or a `502` with the same reason for the JSON API.
 
 ### Model names
 
-The specification names `gemini-1.5-pro` and `gemini-1.5-flash`. Google has retired both, and they
-now return 404, which surfaces as the same error page or API `502` as any other failure. The
-defaults above are current names that keep the specified split of Pro for workout plans and Flash
-for nutrition tips.
+The specification names `gemini-1.5-pro` and `gemini-1.5-flash`. Google has retired both, and those
+names now return 404, which surfaces like any other failure.
 
-Free-tier keys have no Pro quota, so `gemini-3.1-pro-preview` answers with 429 and plan generation
-fails until billing is enabled on the project. The Flash free tier allows 20 requests per day; once
-those are used up, nutrition tips fail the same way until the daily reset. The error page shows the
-status code, quota metric and retry hint for each case.
+The example file points both slots at a Flash model because free-tier keys get no Pro quota at all:
+a Pro id answers 429 and plan generation fails until billing is enabled on the project. Once billing
+is on, set `GEMINI_PRO_MODEL` back to a Pro id and the app follows the specified split of Pro for
+plans and Flash for tips. Flash allows 20 requests a day, and once those are used up, tips fail the
+same way until the daily reset. The error page names the model, the limit and the retry delay in
+each case.
 
 ### 4. Run the server
 
