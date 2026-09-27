@@ -72,7 +72,8 @@ fitbuddy-ai/
 │   └── all_users.html            # Admin dashboard
 ├── static/images/gym-bg.jpg      # Gym photo used as the page backdrop
 ├── fitbuddy.db                   # SQLite database, created on first run
-└── requirements.txt
+├── requirements.txt
+└── .env.example                  # Copy to .env and add your Gemini key
 ```
 
 The file set follows the project structure given in the design specification. CSS is inlined into
